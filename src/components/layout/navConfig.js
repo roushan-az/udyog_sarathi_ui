@@ -4,7 +4,7 @@ import {
 } from 'lucide-react'
 
 export const navItems = [
-  { to: '/', label: 'होम', icon: Home, end: true },
+  { to: '/dashboard', label: 'होम', icon: Home },
   { to: '/sales-bill', label: 'बिक्री', icon: ShoppingBag },
   { to: '/sales-return', label: 'बिक्री वापसी', icon: Undo2 },
   { to: '/purchase-bill', label: 'खरीद', icon: ShoppingCart },
@@ -23,7 +23,7 @@ export const navItems = [
 
 // Reduced set for the bottom nav bar on mobile
 export const mobileNavItems = [
-  { to: '/', label: 'होम', icon: Home, end: true },
+  { to: '/dashboard', label: 'होम', icon: Home },
   { to: '/sales-bill', label: 'बिल', icon: ShoppingBag },
   { to: '/products', label: 'प्रोडक्ट', icon: Grid3x3 },
   { to: '/reports', label: 'रिपोर्ट', icon: BarChart3 },

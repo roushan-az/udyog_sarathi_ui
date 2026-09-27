@@ -20,10 +20,10 @@ import PlaceholderList from './pages/PlaceholderList'
 export default function App() {
   return (
     <Routes>
-      <Route path="/splash" element={<Splash firstTime />} />
+      <Route path="/" element={<Splash />} />
       <Route path="/company-setup" element={<CompanySetup />} />
 
-      <Route path="/" element={<Dashboard />} />
+      <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/sales-bill" element={<SalesBill />} />
       <Route path="/purchase-bill" element={<PurchaseBill />} />
       <Route path="/sales-return" element={<PlaceholderList code="SCR-004R" title="बिक्री वापसी" subtitle="Sales Return / Credit Note की सूची" />} />

@@ -1,8 +1,9 @@
 import React from 'react'
 import { NavLink } from 'react-router-dom'
-import { X } from 'lucide-react'
+import { X, ShieldCheck } from 'lucide-react'
 import Logo from '../common/Logo'
 import { SupportBox } from '../common/Misc'
+import Button from '../common/Button'
 import { navItems } from './navConfig'
 import { useApp } from '../../context/AppContext'
 
@@ -25,7 +26,7 @@ function NavItem({ to, label, icon: Icon, end, onClick }) {
 }
 
 export default function Sidebar() {
-  const { sidebarOpen, setSidebarOpen } = useApp()
+  const { sidebarOpen, setSidebarOpen, company } = useApp()
 
   const content = (
     <div className="flex flex-col h-full">
@@ -40,6 +41,18 @@ export default function Sidebar() {
           <NavItem key={item.to} {...item} onClick={() => setSidebarOpen(false)} />
         ))}
       </nav>
+
+      {/* SCR-003: License validity card sits in the sidebar, below the nav */}
+      {company.licenseValid && (
+        <div className="mx-3 mb-3 rounded-xl bg-emerald-50 border border-emerald-200 p-3.5">
+          <p className="text-sm font-semibold text-brandGreen-700 flex items-center gap-1.5">
+            <ShieldCheck size={16} /> License वैध है
+          </p>
+          <p className="text-xs text-slate-500 mt-1">{company.licenseExpiry} तक</p>
+          <Button variant="primary" size="sm" className="w-full mt-2">नवीनीकरण करें</Button>
+        </div>
+      )}
+
       <SupportBox />
       <p className="text-center text-[11px] text-slate-400 pb-3">Version 1.0 | © Udyog Sarthi</p>
     </div>
