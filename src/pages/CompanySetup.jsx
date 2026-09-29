@@ -8,7 +8,7 @@ import { useApp } from '../context/AppContext'
 import shopIllustration from '../assets/illus-my-business.png'
 
 const STEPS = ['कंपनी जानकारी', 'पता जानकारी', 'व्यवसाय विवरण', 'अतिरिक्त जानकारी', 'पूरी करें']
-const STEP_TITLES = ['कंपनी जानकारी', 'पता जानकारी', 'व्यवसाया विवरण', 'अतिरिक्त जानकारी', 'पूरी करें']
+const STEP_TITLES = ['कंपनी जानकारी', 'पता जानकारी', 'व्यवसाय विवरण', 'अतिरिक्त जानकारी', 'पूरी करें']
 
 const initialForm = {
   companyName: '', companyType: '', ownerName: '', mobile: '',
@@ -38,7 +38,7 @@ export default function CompanySetup() {
       <div className="lg:hidden w-full max-w-sm bg-white rounded-2xl shadow-card border border-slate-200 overflow-hidden">
         {showMobileIntro ? (
           <div className="p-6 flex flex-col items-center text-center gap-4">
-            <Logo />
+            <Logo variant="stacked" size="md" />
             <h2 className="text-lg font-bold text-slate-800 mt-2">आइए, आपका व्यवसाय सेटअप करें</h2>
             <p className="text-sm text-slate-500">कुछ आसान जानकारी भरें और अपना व्यवसाय ऐप में शुरू करें।</p>
             <img src={shopIllustration} alt="" className="w-44 h-auto my-2" />
