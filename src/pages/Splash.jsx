@@ -1,28 +1,46 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Logo from '../components/common/Logo'
-import { useApp } from '../context/AppContext'
 import peopleTalking from '../assets/illus-people-talking.png'
 import growthIcon from '../assets/illus-growth-icon.png'
 import mountainClimber from '../assets/illus-mountain-climber.png'
 
 const SLIDE_COUNT = 3
+const SHOW_DESKTOP_DOTS = false // prototype desktop cards have no dots (mobile keeps them)
 
-// Soft green corner waves used on the card background (as in SCR-001):
-// visible only at the bottom-left and bottom-right corners, flat/invisible in the middle.
-const WAVE_BG = `url("data:image/svg+xml;utf8,${encodeURIComponent(
-  `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 420' preserveAspectRatio='none'>
-    <path d='M0 420 L0 290 C120 250 260 300 380 420 Z' fill='#e3f4e9' fill-opacity='.85'/>
-    <path d='M1200 420 L1200 290 C1080 250 940 300 820 420 Z' fill='#e3f4e9' fill-opacity='.85'/>
-    <path d='M0 420 L0 340 C80 310 170 345 260 420 Z' fill='#d3ecdc' fill-opacity='.9'/>
-    <path d='M1200 420 L1200 340 C1120 310 1030 345 940 420 Z' fill='#d3ecdc' fill-opacity='.9'/>
-  </svg>`
-)}")`
+// Soft rolling-hill background from the prototype (Slide-1 & Slide-3): very pale green,
+// high at the left/right edges, dipping gently to nearly-white in the middle so text never touches it.
+// viewBox matches the 10:3 desktop card.
+const WAVE_DEFS = `<defs>
+      <linearGradient id='a' x1='0' y1='0' x2='0' y2='1'>
+        <stop offset='0' stop-color='#f3f9f5' stop-opacity='.9'/>
+        <stop offset='1' stop-color='#ebf5ef' stop-opacity='.9'/>
+      </linearGradient>
+      <linearGradient id='b' x1='0' y1='0' x2='0' y2='1'>
+        <stop offset='0' stop-color='#e8f3ec' stop-opacity='.85'/>
+        <stop offset='1' stop-color='#dcede3' stop-opacity='.85'/>
+      </linearGradient>
+    </defs>`
+const svgUrl = (inner) =>
+  `url("data:image/svg+xml;utf8,${encodeURIComponent(
+    `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 360' preserveAspectRatio='none'>${WAVE_DEFS}${inner}</svg>`
+  )}")`
 
-const Divider = ({ className = '' }) => (
-  <div className={`flex items-center justify-center gap-2 ${className}`}>
+// Slide 1: hills on both sides
+const WAVE_BG = svgUrl(`
+    <path d='M0 202 C140 202 250 236 350 296 C430 344 500 352 600 352 C700 352 770 344 850 296 C950 236 1060 202 1200 202 L1200 360 L0 360 Z' fill='url(#a)'/>
+    <path d='M0 276 C90 276 170 300 250 360 L0 360 Z' fill='url(#b)'/>
+    <path d='M1200 276 C1110 276 1030 300 950 360 L1200 360 Z' fill='url(#b)'/>`)
+
+// Slide 3: left hill only (the mountain illustration on the right is self-contained)
+const WAVE_BG_LEFT = svgUrl(`
+    <path d='M0 202 C140 202 250 236 350 296 C430 344 500 352 600 352 C800 352 1000 356 1200 358 L1200 360 L0 360 Z' fill='url(#a)'/>
+    <path d='M0 276 C90 276 170 300 250 360 L0 360 Z' fill='url(#b)'/>`)
+
+const Divider = ({ className = '', align = 'center' }) => (
+  <div className={`flex items-center gap-2 ${align === 'left' ? 'justify-start' : 'justify-center'} ${className}`}>
     <span className="h-px w-16 bg-navy-700/60" />
-    <span className="w-2 h-2 rounded-full bg-brandOrange-500" />
+    <span className="w-2 h-2 rounded-full bg-brandOrange-500 shrink-0" />
     <span className="h-px w-16 bg-brandGreen-700/60" />
   </div>
 )
@@ -56,19 +74,19 @@ const Heading3 = ({ cls = '' }) => (
   </h2>
 )
 
-// SCR-001: 3 slides × 2 sec, then -> SCR-002 (first time) or SCR-003 (returning user)
+// SCR-001: 3 slides × 2 sec, then -> SCR-002 (Company Setup).
+// Home (SCR-003) is only reached from the "Home Screen पर जाएं" button at the end of Company Setup.
 export default function Splash() {
   const [index, setIndex] = useState(0)
   const navigate = useNavigate()
-  const { onboardingCompleted } = useApp()
 
   useEffect(() => {
     const timer = setTimeout(() => {
       if (index < SLIDE_COUNT - 1) setIndex((i) => i + 1)
-      else navigate(onboardingCompleted ? '/dashboard' : '/company-setup', { replace: true })
+      else navigate('/company-setup', { replace: true })
     }, 2000)
     return () => clearTimeout(timer)
-  }, [index, navigate, onboardingCompleted])
+  }, [index, navigate])
 
   return (
     <div className="min-h-screen bg-white flex items-center justify-center">
@@ -93,11 +111,11 @@ export default function Splash() {
           )}
           {index === 2 && (
             <>
-              <img src={growthIcon} alt="" className="w-20 h-auto mix-blend-multiply" />
+              <img src={growthIcon} alt="" className="w-20 h-auto" />
               <Heading3 cls="text-2xl mt-3" />
               <Divider className="my-3" />
               <p className="text-sm font-medium text-slate-800 leading-7">सीखते रहिए, बढ़ते रहिए,<br />सफल होते रहिए ।</p>
-              <img src={mountainClimber} alt="" className="w-full h-auto mt-4 mix-blend-multiply [mask-image:linear-gradient(to_bottom,transparent,black_18%)]" />
+              <img src={mountainClimber} alt="" className="w-full h-auto mt-4" />
             </>
           )}
         </div>
@@ -105,48 +123,99 @@ export default function Splash() {
         {index !== 0 && <p className="mt-3 text-[11px] font-medium text-slate-500">Version 1.0</p>}
       </div>
 
-      {/* ================= DESKTOP (landscape) ================= */}
+      {/* ================= DESKTOP (landscape) =================
+          Every size below is in cqw (1cqw = 1% of the card width), taken from the prototype's
+          proportions, so the layout scales exactly like the prototype at any window size. */}
       <div
-        className="hidden lg:block relative w-full max-w-5xl h-[440px] mx-6 rounded-2xl border border-slate-200 shadow-card overflow-hidden bg-[#fbfdfb]"
-        style={index === 1 ? undefined : { backgroundImage: WAVE_BG, backgroundSize: '100% 100%' }}
+        className="hidden lg:block relative w-full max-w-5xl mx-6 rounded-2xl border border-slate-200 shadow-card overflow-hidden bg-white"
+        style={{
+          containerType: 'inline-size',
+          aspectRatio: '10 / 3',
+          ...(index === 0 ? { backgroundImage: WAVE_BG, backgroundSize: '100% 100%' } : {}),
+          ...(index === 2 ? { backgroundImage: WAVE_BG_LEFT, backgroundSize: '100% 100%' } : {}),
+        }}
       >
+        {/* ---------- Slide 1 ---------- */}
         {index === 0 && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-6">
-            <Logo variant="splash" size="xl" />
-            <Spinner big />
-          </div>
+          <>
+            <div className="absolute" style={{ left: '23.5cqw', top: '0.8cqw', width: '57cqw' }}>
+              <Logo variant="splash" size="xl" className="!w-full" />
+            </div>
+            <span
+              className="absolute rounded-full animate-spin border-slate-200 border-t-brandGreen-600 border-r-brandGreen-600"
+              style={{ left: '50%', marginLeft: '-2.35cqw', top: '17.8cqw', width: '4.7cqw', height: '4.7cqw', borderWidth: '0.55cqw', borderStyle: 'solid' }}
+            />
+            <p className="absolute w-full text-center font-semibold text-navy-800" style={{ top: '24.4cqw', fontSize: '1.6cqw', lineHeight: '2.4cqw' }}>Loading...</p>
+            <p className="absolute w-full text-center font-medium text-slate-700" style={{ top: '27cqw', fontSize: '1.5cqw', lineHeight: '2.4cqw' }}>Version 1.0</p>
+          </>
         )}
 
+        {/* ---------- Slide 2 ---------- */}
         {index === 1 && (
-          <div className="absolute inset-0 flex items-center px-16 gap-10">
-            <img src={peopleTalking} alt="" className="w-[26rem] h-auto shrink-0 mix-blend-multiply" />
-            <div className="flex-1 flex flex-col items-center text-center">
-              <Heading2 cls="text-[2.15rem]" />
-              <Divider className="my-4" />
-              <p className="text-lg font-medium text-slate-800 leading-8 max-w-sm">
-                व्यवसाय को समझने, सीखने, सुझाव पाने, रिपोर्ट देखने और अपने व्यवसाय को बेहतर जानने में हम आपका साथ देते हैं।
+          <>
+            <img
+              src={peopleTalking}
+              alt=""
+              className="absolute mix-blend-multiply"
+              style={{ left: '4.1cqw', top: '50%', transform: 'translateY(-49%)', width: '41.8cqw' }}
+            />
+            <div className="absolute text-center whitespace-nowrap" style={{ left: '70cqw', top: '50%', transform: 'translate(-50%,-50%)' }}>
+              <h2 className="font-extrabold text-navy-700" style={{ fontSize: '3.4cqw', lineHeight: 1.3 }}>
+                हम आपके <span className="text-brandGreen-700">व्यवसाय</span> के साथी हैं
+              </h2>
+              <div className="flex items-center justify-center" style={{ margin: '2.2cqw auto', width: '30cqw', gap: '1cqw' }}>
+                <span className="flex-1 h-px bg-navy-700/30" />
+                <span className="rounded-full bg-brandOrange-500" style={{ width: '1.1cqw', height: '1.1cqw' }} />
+                <span className="flex-1 h-px bg-brandGreen-700/30" />
+              </div>
+              <p className="font-medium text-slate-800" style={{ fontSize: '2.35cqw', lineHeight: 1.4 }}>
+                व्यवसाय को समझने, सीखने, सुझाव पाने,<br />
+                रिपोर्ट देखने और अपने व्यवसाय को<br />
+                बेहतर जानने में हम आपका साथ देते हैं।
               </p>
             </div>
-          </div>
+          </>
         )}
 
+        {/* ---------- Slide 3 ---------- */}
         {index === 2 && (
-          <div className="absolute inset-0 flex items-center">
-            <img src={growthIcon} alt="" className="w-40 h-auto shrink-0 ml-16 mix-blend-multiply" />
-            <div className="flex-1 flex flex-col items-center text-center px-6">
-              <Heading3 cls="text-[2.3rem]" />
-              <Divider className="my-4" />
-              <p className="text-lg font-medium text-slate-800 leading-8">सीखते रहिए, बढ़ते रहिए,<br />सफल होते रहिए ।</p>
+          <>
+            <img
+              src={growthIcon}
+              alt=""
+              className="absolute"
+              style={{ left: '8.6cqw', top: 'calc(50% - 2.9cqw)', transform: 'translateY(-50%)', width: '17.6cqw' }}
+            />
+            <div className="absolute text-center whitespace-nowrap" style={{ left: '43.5cqw', top: '50%', transform: 'translate(-50%,-50%)' }}>
+              <h2 className="font-extrabold text-navy-700" style={{ fontSize: '3.4cqw', lineHeight: 1.2 }}>
+                हर बड़ा व्यवसाय<br />एक छोटे कदम से<br /><span className="text-brandGreen-700">शुरू होता है ।</span>
+              </h2>
+              <div className="flex items-center justify-center" style={{ margin: '0.15cqw auto', width: '20cqw', gap: '0.9cqw' }}>
+                <span className="flex-1 h-px bg-navy-700/30" />
+                <span className="rounded-full bg-brandOrange-500" style={{ width: '1cqw', height: '1cqw' }} />
+                <span className="flex-1 h-px bg-brandGreen-700/30" />
+              </div>
+              <p className="font-medium text-slate-800" style={{ fontSize: '2.5cqw', lineHeight: 1.3 }}>
+                सीखते रहिए, बढ़ते रहिए,<br />सफल होते रहिए ।
+              </p>
             </div>
+            {/* Mountain scene: full crop from the prototype (both ridges + flag peak), left edge & top feathered */}
             <img
               src={mountainClimber}
               alt=""
-              className="h-full w-[26rem] shrink-0 object-cover object-left mix-blend-multiply [mask-image:linear-gradient(to_right,transparent,black_22%)]"
+              className="absolute mix-blend-multiply"
+              style={{
+                right: '0.7cqw', bottom: '0.3cqw', width: '37cqw', height: 'auto',
+                WebkitMaskImage: 'linear-gradient(to right, transparent, #000 14%), linear-gradient(to bottom, transparent, #000 18%)',
+                WebkitMaskComposite: 'source-in',
+                maskImage: 'linear-gradient(to right, transparent, #000 14%), linear-gradient(to bottom, transparent, #000 18%)',
+                maskComposite: 'intersect',
+              }}
             />
-          </div>
+          </>
         )}
 
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2"><SlideDots index={index} /></div>
+        {SHOW_DESKTOP_DOTS && <div className="absolute bottom-4 left-1/2 -translate-x-1/2"><SlideDots index={index} /></div>}
       </div>
     </div>
   )
