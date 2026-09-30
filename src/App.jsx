@@ -16,6 +16,7 @@ import Reports from './pages/Reports'
 import Settings from './pages/Settings'
 import Support from './pages/Support'
 import PlaceholderList from './pages/PlaceholderList'
+import SalesReturn from './pages/SalesReturn'
 
 export default function App() {
   return (
@@ -26,7 +27,7 @@ export default function App() {
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/sales-bill" element={<SalesBill />} />
       <Route path="/purchase-bill" element={<PurchaseBill />} />
-      <Route path="/sales-return" element={<PlaceholderList code="SCR-004R" title="बिक्री वापसी" subtitle="Sales Return / Credit Note की सूची" />} />
+      <Route path="/sales-return" element={<SalesReturn/>}/>
       <Route path="/purchase-return" element={<PlaceholderList code="SCR-005R" title="खरीद वापसी" subtitle="Purchase Return / Debit Note की सूची" />} />
       <Route path="/products" element={<ProductMaster />} />
       <Route path="/parties" element={<PartyMaster />} />
