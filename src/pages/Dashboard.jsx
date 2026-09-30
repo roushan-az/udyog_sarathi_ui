@@ -68,7 +68,7 @@ export default function Dashboard() {
     }
     subtitle=""
   >
-  
+
       {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
         {statCards.map((s) => (
