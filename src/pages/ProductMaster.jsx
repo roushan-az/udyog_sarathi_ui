@@ -2,8 +2,10 @@ import React, { useMemo, useState } from 'react'
 import {
   Search, Filter, Plus, FileSpreadsheet, Printer, ChevronRight, ChevronLeft, ChevronDown,
   Package, Check, Minus, AlertTriangle, Shield, IndianRupee, RefreshCw, Info, Pencil, Trash2,
+  SlidersHorizontal, Landmark, ShieldCheck, X,
 } from 'lucide-react'
 import Layout from '../components/layout/Layout'
+import MobileHeader from '../components/layout/MobileHeader'
 import PageHeader from '../components/common/PageHeader'
 import { Card } from '../components/common/Card'
 import { products, productSummary } from '../data/mockData'
@@ -56,6 +58,26 @@ function FilterSelect({ value, onChange, children, className = '' }) {
   )
 }
 
+/* ---------- mobile-only pieces (phone / small tablet, < lg) ---------- */
+const MSummary = ({ label, value, icon, bg, border, labelColor, onClick, active }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={`text-left rounded-xl border ${border} ${bg} px-3 py-3 flex items-center justify-between gap-2 shadow-sm min-w-0 transition active:scale-[0.98] focus-ring ${active ? 'ring-2 ring-brandGreen-600/40' : ''}`}
+  >
+    <div className="min-w-0">
+      <p className={`text-[11px] sm:text-xs font-semibold ${labelColor} leading-tight`}>{label}</p>
+      <p className={`mt-1.5 text-xl sm:text-2xl font-bold ${NAVY} leading-none truncate`}>{value}</p>
+    </div>
+    <div className="shrink-0">{icon}</div>
+  </button>
+)
+
+const M_SELECT =
+  'w-full h-11 appearance-none rounded-lg border border-slate-300 bg-white pl-3 pr-9 text-sm font-semibold text-[#1b2a5c] focus:outline-none focus:border-brandGreen-500 focus:ring-1 focus:ring-brandGreen-500'
+
+const PAGE_STEP = 10
+
 /* ---------- page ---------- */
 export default function ProductMaster() {
   const { pushToast } = useApp()
@@ -64,6 +86,8 @@ export default function ProductMaster() {
   const [status, setStatus] = useState('सभी स्थिति')
   const [rowsPerPage, setRowsPerPage] = useState(10)
   const [page, setPage] = useState(1)
+  const [showFilters, setShowFilters] = useState(false)
+  const [visible, setVisible] = useState(PAGE_STEP)
 
   const categories = useMemo(() => ['सभी श्रेणी', ...new Set(products.map((p) => p.category))], [])
 
@@ -86,7 +110,16 @@ export default function ProductMaster() {
     setCategory('सभी श्रेणी')
     setStatus('सभी स्थिति')
     setPage(1)
+    setVisible(PAGE_STEP)
   }
+
+  // mobile: tapping a summary card quick-filters the list
+  const quickStatus = (s) => {
+    setStatus((cur) => (cur === s ? 'सभी स्थिति' : s))
+    setVisible(PAGE_STEP)
+  }
+  const activeFilterCount = (category !== 'सभी श्रेणी' ? 1 : 0) + (status !== 'सभी स्थिति' ? 1 : 0)
+  const mobileRows = filtered.slice(0, visible)
 
   const headers = [
     ['SL No.', 'w-16'], ['प्रोडक्ट नाम', ''], ['HSN कोड', ''], ['श्रेणी', ''], ['Unit', ''],
@@ -98,6 +131,8 @@ export default function ProductMaster() {
 
   return (
     <Layout title="प्रोडक्ट मास्टर" subtitle="सभी प्रोडक्ट की जानकारी यहाँ प्रवंधित करें">
+      {/* ===================== DESKTOP (lg and up) ===================== */}
+      <div className="hidden lg:block">
       <PageHeader
         code="SCR-006"
         title="प्रोडक्ट मास्टर"
@@ -219,7 +254,7 @@ export default function ProductMaster() {
       </Card>
 
       {/* Desktop table */}
-      <div className="hidden md:block rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
@@ -297,28 +332,6 @@ export default function ProductMaster() {
         </div>
       </div>
 
-      {/* Mobile card list */}
-      <div className="md:hidden space-y-2.5">
-        {filtered.map((p) => (
-          <Card key={p.id} className="p-3.5">
-            <div className="flex items-center justify-between gap-2">
-              <div className="min-w-0">
-                <p className={`font-bold ${NAVY} truncate`}>{p.name}</p>
-                <p className="text-xs text-slate-400 mt-0.5">HSN: {p.hsn} | Unit: {p.unit}</p>
-              </div>
-              <span className={`inline-block rounded-md border px-2.5 py-0.5 text-xs font-bold whitespace-nowrap ${statusStyle[p.status] || statusStyle['सक्रिय']}`}>
-                {p.status}
-              </span>
-            </div>
-            <div className="flex items-center justify-between mt-2.5 text-sm">
-              <span className="text-slate-500">स्टॉक: <span className={`font-bold ${NAVY}`}>{fmt2(p.stock)}</span></span>
-              <span className="text-slate-500">रेट (₹): <span className={`font-bold ${NAVY}`}>{fmt2(p.saleRate)}</span></span>
-              <ChevronRight size={16} className="text-slate-300" />
-            </div>
-          </Card>
-        ))}
-      </div>
-
       {/* Note */}
       <div className="mt-5 rounded-xl bg-slate-50 border border-slate-200 px-5 py-4 flex items-center justify-between gap-4">
         <div className={`text-[13px] ${NAVY}`}>
@@ -333,6 +346,174 @@ export default function ProductMaster() {
           </ul>
         </div>
         <img src={noteImg} alt="" className="h-24 w-auto shrink-0 hidden sm:block select-none" />
+      </div>
+      </div>
+
+      {/* ===================== MOBILE (prototype: SCR-006) ===================== */}
+      <div className="lg:hidden fixed inset-x-0 top-0 bottom-[56px] z-30 mx-auto w-full max-w-[900px] bg-white flex flex-col overflow-hidden">
+        <MobileHeader />
+
+        <main className="flex-1 overflow-y-auto overscroll-contain px-[clamp(12px,4vw,28px)] pt-1 pb-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {/* title */}
+          <div className="text-center mb-3">
+            <h1 className={`text-[17px] sm:text-xl font-bold ${NAVY} leading-tight`}>प्रोडक्ट मास्टर (SCR-006)</h1>
+            <p className={`text-xs sm:text-sm font-semibold ${NAVY} mt-0.5`}>सभी प्रोडक्ट की जानकारी यहाँ प्रवंधित करें</p>
+          </div>
+
+          {/* add product */}
+          <button
+            type="button"
+            onClick={() => pushToast('नया प्रोडक्ट जोड़ने का फॉर्म खुलेगा', 'info')}
+            className="w-full h-12 inline-flex items-center justify-center gap-2 rounded-lg bg-brandGreen-700 hover:bg-brandGreen-800 active:scale-[0.99] transition text-white text-sm font-bold focus-ring"
+          >
+            <Plus size={18} />
+            नया प्रोडक्ट जोड़ें
+          </button>
+
+          {/* search + filter */}
+          <div className="mt-3 flex items-center gap-2">
+            <div className="relative flex-1 min-w-0">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <input
+                value={query}
+                onChange={(e) => { setQuery(e.target.value); setVisible(PAGE_STEP) }}
+                placeholder="प्रोडक्ट नाम / HSN कोड से खोजें"
+                aria-label="प्रोडक्ट खोजें"
+                className="w-full h-11 rounded-lg border border-slate-300 bg-white pl-9 pr-9 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-brandGreen-500 focus:ring-1 focus:ring-brandGreen-500"
+              />
+              {query && (
+                <button type="button" aria-label="खोज साफ़ करें" onClick={() => setQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400">
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+            <button
+              type="button"
+              aria-label="फिल्टर"
+              aria-expanded={showFilters}
+              onClick={() => setShowFilters((v) => !v)}
+              className={`relative shrink-0 h-11 w-11 inline-flex items-center justify-center rounded-lg border bg-white focus-ring ${showFilters ? 'border-brandGreen-600' : 'border-slate-300'} ${NAVY}`}
+            >
+              <SlidersHorizontal size={18} />
+              {activeFilterCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-brandGreen-700 text-white text-[10px] font-bold flex items-center justify-center">
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {/* filter panel */}
+          {showFilters && (
+            <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-3 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div className="relative">
+                <select value={category} onChange={(e) => { setCategory(e.target.value); setVisible(PAGE_STEP) }} className={M_SELECT} aria-label="श्रेणी">
+                  {categories.map((c) => <option key={c}>{c}</option>)}
+                </select>
+                <ChevronDown size={16} className={`pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 ${NAVY}`} />
+              </div>
+              <div className="relative">
+                <select value={status} onChange={(e) => { setStatus(e.target.value); setVisible(PAGE_STEP) }} className={M_SELECT} aria-label="स्थिति">
+                  <option>सभी स्थिति</option>
+                  <option>सक्रिय</option>
+                  <option>कम स्टॉक</option>
+                  <option>निष्क्रिय</option>
+                </select>
+                <ChevronDown size={16} className={`pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 ${NAVY}`} />
+              </div>
+              <button type="button" onClick={resetFilters} className={`sm:col-span-2 h-10 inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white text-sm font-semibold ${NAVY} focus-ring`}>
+                <RefreshCw size={15} /> रीसेट करें
+              </button>
+            </div>
+          )}
+
+          {/* summary cards (tap to quick-filter) */}
+          <div className="mt-3 grid grid-cols-2 gap-2.5 sm:gap-3">
+            <MSummary
+              label="कुल प्रोडक्ट"
+              value={productSummary.total}
+              bg="bg-gradient-to-br from-white to-blue-50"
+              border="border-blue-100"
+              labelColor="text-blue-700"
+              onClick={resetFilters}
+              icon={<Package size={28} strokeWidth={1.8} className="text-blue-600 fill-blue-100" />}
+            />
+            <MSummary
+              label="सक्रिय प्रोडक्ट"
+              value={productSummary.active}
+              bg="bg-gradient-to-br from-white to-green-50"
+              border="border-green-100"
+              labelColor="text-green-700"
+              active={status === 'सक्रिय'}
+              onClick={() => quickStatus('सक्रिय')}
+              icon={<ShieldCheck size={28} strokeWidth={1.8} className="text-green-600" />}
+            />
+            <MSummary
+              label="कुल स्टॉक वैल्यू (₹)"
+              value={fmt2(productSummary.totalStockValue)}
+              bg="bg-gradient-to-br from-white to-purple-50"
+              border="border-purple-100"
+              labelColor="text-purple-700"
+              icon={<Landmark size={28} strokeWidth={1.8} className="text-purple-600" />}
+            />
+            <MSummary
+              label="कम स्टॉक वाले प्रोडक्ट"
+              value={pad2(productSummary.lowStock)}
+              bg="bg-gradient-to-br from-white to-orange-50"
+              border="border-orange-100"
+              labelColor="text-orange-600"
+              active={status === 'कम स्टॉक'}
+              onClick={() => quickStatus('कम स्टॉक')}
+              icon={<AlertTriangle size={26} strokeWidth={2} className="text-white fill-orange-500" />}
+            />
+          </div>
+
+          {/* product list */}
+          <div className="mt-4 flex items-baseline justify-between">
+            <h2 className={`text-sm font-bold ${NAVY}`}>प्रोडक्ट सूची</h2>
+            {isFiltered && <span className="text-[11px] font-semibold text-slate-500">{filtered.length} परिणाम</span>}
+          </div>
+
+          <ul className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2.5">
+            {mobileRows.map((p, i) => (
+              <li key={p.id}>
+                <button
+                  type="button"
+                  onClick={() => pushToast('प्रोडक्ट विवरण खुलेगा', 'info')}
+                  className="w-full text-left rounded-xl border border-slate-200 bg-white px-3.5 py-3 shadow-sm active:bg-slate-50 transition focus-ring"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <p className={`text-[15px] font-bold ${NAVY} truncate`}>{i + 1}. {p.name}</p>
+                    <span className={`shrink-0 rounded-md border px-2 py-0.5 text-[11px] font-bold whitespace-nowrap ${statusStyle[p.status] || statusStyle['सक्रिय']}`}>
+                      {p.status}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs font-semibold text-slate-600">HSN: {p.hsn} &nbsp;|&nbsp; Unit: {p.unit}</p>
+                  <div className="mt-2 flex items-center justify-between gap-2 text-xs">
+                    <span className="text-slate-600 font-semibold">स्टॉक: <span className={`font-bold ${NAVY}`}>{fmt2(p.stock)}</span></span>
+                    <span className="flex items-center gap-1.5 text-slate-600 font-semibold">
+                      रेट (₹): <span className={`font-bold ${NAVY}`}>{fmt2(p.saleRate)}</span>
+                    </span>
+                  </div>
+                </button>
+              </li>
+            ))}
+          </ul>
+
+          {filtered.length === 0 && (
+            <p className="py-10 text-center text-sm text-slate-400">कोई रिकॉर्ड नहीं मिला</p>
+          )}
+
+          {filtered.length > visible && (
+            <button
+              type="button"
+              onClick={() => setVisible((v) => v + PAGE_STEP)}
+              className={`mt-3 w-full h-11 rounded-lg border border-slate-300 bg-white text-sm font-semibold ${NAVY} focus-ring`}
+            >
+              और देखें ({filtered.length - visible})
+            </button>
+          )}
+        </main>
       </div>
     </Layout>
   )
