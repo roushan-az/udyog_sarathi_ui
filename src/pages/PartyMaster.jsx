@@ -1,9 +1,10 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import {
   Search, Filter, Plus, FileSpreadsheet, Printer, ChevronRight, ChevronLeft, ChevronDown,
   Users, UserCheck, Truck, Ban, Wallet, RefreshCw, Info, Pencil, Trash2,
 } from 'lucide-react'
 import Layout from '../components/layout/Layout'
+import MobileHeader from '../components/layout/MobileHeader'
 import PageHeader from '../components/common/PageHeader'
 import { Card } from '../components/common/Card'
 import { parties, partySummary } from '../data/mockData'
@@ -110,6 +111,8 @@ export default function PartyMaster() {
 
   return (
     <Layout title="पार्टी मास्टर" subtitle="सभी ग्राहकों और सप्लायर की जानकारी यहाँ प्रवंधित करें">
+      {/* ===================== DESKTOP (lg and up) ===================== */}
+      <div className="hidden lg:block">
       <PageHeader
         code="SCR-007"
         title="पार्टी मास्टर"
@@ -205,7 +208,7 @@ export default function PartyMaster() {
       </Card>
 
       {/* Desktop table */}
-      <div className="hidden md:block rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+      <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
@@ -284,35 +287,6 @@ export default function PartyMaster() {
         </div>
       </div>
 
-      {/* Mobile card list */}
-      <div className="md:hidden space-y-2.5">
-        {filtered.map((p) => (
-          <Card key={p.id} className="p-3.5">
-            <div className="flex items-center gap-3">
-              <span className="w-10 h-10 rounded-full bg-slate-100 text-[#1b2a5c] font-bold flex items-center justify-center shrink-0">
-                {p.name.slice(0, 2).toUpperCase()}
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <p className={`font-bold ${NAVY} truncate`}>{p.name}</p>
-                  <span className={`${pill} ${typeStyle[p.type] || typeStyle['ग्राहक']}`}>{p.type}</span>
-                </div>
-                <p className="text-xs text-slate-400">{p.mobile} • {p.place}</p>
-              </div>
-              <ChevronRight size={16} className="text-slate-300 shrink-0" />
-            </div>
-          </Card>
-        ))}
-        <button
-          type="button"
-          onClick={() => pushToast('नई पार्टी जोड़ने का फॉर्म खुलेगा', 'info')}
-          className="w-full mt-2 inline-flex items-center justify-center gap-2 h-11 rounded-lg bg-[#0b7a3e] text-white text-sm font-bold"
-        >
-          <Plus size={18} />
-          नई पार्टी जोड़ें
-        </button>
-      </div>
-
       {/* Note */}
       <div className="mt-5 rounded-xl bg-green-50/70 border border-green-200 px-5 py-4 flex items-center justify-between gap-4">
         <div className={`text-[13px] ${NAVY}`}>
@@ -328,6 +302,213 @@ export default function PartyMaster() {
         </div>
         <img src={noteImg} alt="" className="h-24 w-auto shrink-0 hidden sm:block select-none" />
       </div>
+      </div>
+
+      {/* ===================== MOBILE (prototype: SCR-007) ===================== */}
+      <PartyMasterMobile />
     </Layout>
+  )
+}
+
+/* =====================================================================
+   MOBILE VIEW (phone / small tablet, < lg) — prototype SCR-007
+   Same shell as SalesReturn: MobileHeader on top, scrolling body,
+   Layout's bottom nav below. Sizes are clamp()-based so it scales.
+   ===================================================================== */
+const C = { green: '#14612e', label: '#1e3a8a', text: '#1f2937', muted: '#6b7280', border: '#e9ecf0', field: '#d9dde3' }
+const cl = (min, vw, max) => `clamp(${min}px, ${vw}vw, ${max}px)`
+
+const TABS = [
+  { label: 'सभी पार्टी', value: 'all' },
+  { label: 'ग्राहक', value: 'ग्राहक' },
+  { label: 'सप्लायर', value: 'सप्लायर' },
+]
+const STATUS_OPTIONS = ['सभी स्थिति', 'सक्रिय', 'निष्क्रिय']
+
+const avatarStyle = {
+  'ग्राहक': { background: '#d9f2e1', color: '#14612e' },
+  'सप्लायर': { background: '#ece4fb', color: '#5b21b6' },
+}
+const mobilePill = {
+  'ग्राहक': { background: '#f0fbf3', color: '#15803d', borderColor: '#86d39f' },
+  'सप्लायर': { background: '#f5f0ff', color: '#6d28d9', borderColor: '#c4b0f0' },
+}
+
+const initials = (name = '') => {
+  const w = name.trim().split(/\s+/).filter(Boolean)
+  return (w.length > 1 ? w[0][0] + w[1][0] : name.slice(0, 2)).toUpperCase()
+}
+
+function MobileStat({ label, value, icon: Icon, bg, border, labelColor, iconColor }) {
+  return (
+    <div className="rounded-xl border flex items-center justify-between shadow-sm" style={{ background: bg, borderColor: border, padding: `${cl(10, 3.2, 16)} ${cl(12, 3.8, 18)}` }}>
+      <div className="min-w-0">
+        <p className="font-bold leading-tight" style={{ color: labelColor, fontSize: cl(11, 3.4, 14) }}>{label}</p>
+        <p className="mt-2 font-bold leading-none" style={{ color: C.label, fontSize: cl(20, 6.4, 28) }}>{value}</p>
+      </div>
+      <Icon className="shrink-0 ml-2" strokeWidth={1.9} style={{ color: iconColor, width: cl(22, 7, 32), height: cl(22, 7, 32) }} />
+    </div>
+  )
+}
+
+function PartyMasterMobile() {
+  const { pushToast } = useApp()
+  const [query, setQuery] = useState('')
+  const [tab, setTab] = useState('all')
+  const [status, setStatus] = useState('सभी स्थिति')
+  const [filterOpen, setFilterOpen] = useState(false)
+
+  const list = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    return parties.filter((p) => {
+      const matchesQuery = !q || p.name.toLowerCase().includes(q) || (p.mobile || '').includes(query.trim()) || (p.gstin || '').toLowerCase().includes(q)
+      const matchesTab = tab === 'all' || p.type === tab
+      const matchesStatus = status === 'सभी स्थिति' || p.status === status
+      return matchesQuery && matchesTab && matchesStatus
+    })
+  }, [query, tab, status])
+
+  const filterActive = status !== 'सभी स्थिति'
+  const addParty = () => pushToast('नई पार्टी जोड़ने का फॉर्म खुलेगा', 'info')
+
+  return (
+    <div className="lg:hidden fixed inset-x-0 top-0 bottom-[56px] z-30 mx-auto w-full max-w-[900px] bg-white flex flex-col overflow-hidden">
+      <MobileHeader />
+
+      <main className="flex-1 overflow-y-auto overscroll-contain px-[clamp(12px,4vw,28px)] pt-1 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {/* ---- title ---- */}
+        <div className="text-center">
+          <h1 className="font-bold leading-tight" style={{ color: C.label, fontSize: cl(17, 5.4, 26) }}>पार्टी मास्टर (SCR-007)</h1>
+          <p className="font-semibold leading-tight mt-1" style={{ color: C.text, fontSize: cl(10.5, 3.2, 14) }}>सभी ग्राहकों और सप्लायर की जानकारी यहाँ प्रवंधित करें</p>
+        </div>
+
+        {/* ---- summary cards ---- */}
+        <div className="grid grid-cols-2 mt-4" style={{ gap: cl(10, 3.4, 18) }}>
+          <MobileStat label="कुल पार्टी" value={partySummary.total} icon={Users} bg="#eef4ff" border="#cfdcf7" labelColor="#1d4ed8" iconColor="#2563eb" />
+          <MobileStat label="ग्राहक" value={partySummary.customers} icon={UserCheck} bg="#effaf2" border="#c6e8d0" labelColor="#15803d" iconColor="#15803d" />
+          <MobileStat label="सप्लायर" value={partySummary.suppliers} icon={Truck} bg="#f6f1ff" border="#dccff5" labelColor="#6d28d9" iconColor="#7c3aed" />
+          <MobileStat label="निष्क्रिय पार्टी" value={pad2(partySummary.inactive)} icon={Ban} bg="#fff6ec" border="#f7d9b8" labelColor="#ea580c" iconColor="#f97316" />
+        </div>
+
+        {/* ---- search + filter ---- */}
+        <div className="mt-4 flex items-center" style={{ gap: cl(8, 3, 14) }}>
+          <div className="relative flex-1 min-w-0">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: C.muted, width: cl(15, 4.4, 20), height: cl(15, 4.4, 20) }} />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="पार्टी नाम, मोबाइल, GSTIN से खोजें"
+              aria-label="पार्टी खोजें"
+              className="w-full rounded-lg border bg-white pl-9 pr-3 outline-none placeholder:text-slate-400 focus:border-green-600"
+              style={{ borderColor: C.field, height: cl(40, 11.5, 50), color: C.text, fontSize: cl(11.5, 3.5, 15) }}
+            />
+          </div>
+          <button
+            type="button"
+            aria-label="फिल्टर"
+            aria-expanded={filterOpen}
+            onClick={() => setFilterOpen((v) => !v)}
+            className="relative shrink-0 rounded-lg border flex items-center justify-center focus-ring active:bg-slate-50"
+            style={{ borderColor: filterOpen || filterActive ? C.green : C.field, background: filterOpen ? '#f0fbf3' : '#fff', color: C.label, width: cl(40, 11.5, 50), height: cl(40, 11.5, 50) }}
+          >
+            <Filter style={{ width: cl(16, 4.8, 22), height: cl(16, 4.8, 22) }} />
+            {filterActive && <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full" style={{ background: C.green }} />}
+          </button>
+        </div>
+
+        {/* status filter (opens from the filter button) */}
+        {filterOpen && (
+          <div className="mt-2.5 rounded-lg border bg-slate-50 p-2.5" style={{ borderColor: C.field }}>
+            <p className="font-semibold mb-1.5" style={{ color: C.label, fontSize: cl(11, 3.3, 14) }}>स्थिति</p>
+            <div className="flex flex-wrap gap-2">
+              {STATUS_OPTIONS.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setStatus(s)}
+                  className="rounded-full border px-3 py-1 font-semibold focus-ring"
+                  style={{
+                    fontSize: cl(11, 3.3, 14),
+                    background: status === s ? C.green : '#fff',
+                    color: status === s ? '#fff' : C.text,
+                    borderColor: status === s ? C.green : C.field,
+                  }}
+                >{s}</button>
+              ))}
+              {filterActive && (
+                <button type="button" onClick={() => setStatus('सभी स्थिति')} className="ml-auto inline-flex items-center gap-1 px-2 py-1 font-semibold focus-ring rounded" style={{ color: C.label, fontSize: cl(11, 3.3, 14) }}>
+                  <RefreshCw size={13} /> रीसेट
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ---- tabs ---- */}
+        <div className="mt-3 grid grid-cols-3 rounded-lg overflow-hidden border" style={{ borderColor: C.field }} role="tablist">
+          {TABS.map((t, i) => {
+            const active = tab === t.value
+            return (
+              <button
+                key={t.value}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setTab(t.value)}
+                className={`font-semibold focus-ring ${i > 0 ? 'border-l' : ''}`}
+                style={{ height: cl(38, 11, 48), fontSize: cl(12, 3.6, 15), borderColor: C.field, background: active ? C.green : '#fff', color: active ? '#fff' : C.text }}
+              >{t.label}</button>
+            )
+          })}
+        </div>
+
+        {/* ---- party cards ---- */}
+        <div className="mt-3 space-y-2.5">
+          {list.map((p) => {
+            const type = p.type in avatarStyle ? p.type : 'ग्राहक'
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => pushToast(`${p.name} की जानकारी खुलेगी`, 'info')}
+                className="w-full text-left rounded-xl border bg-white shadow-sm flex items-center active:bg-slate-50 focus-ring"
+                style={{ borderColor: C.border, padding: cl(10, 3.4, 16), gap: cl(10, 3.4, 16) }}
+              >
+                <span className="shrink-0 rounded-full flex items-center justify-center font-bold" style={{ ...avatarStyle[type], width: cl(42, 12.5, 56), height: cl(42, 12.5, 56), fontSize: cl(14, 4.4, 19) }}>
+                  {initials(p.name)}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-2">
+                    <span className="font-bold truncate" style={{ color: C.label, fontSize: cl(13, 4, 17) }}>{p.name}</span>
+                    <span className="shrink-0 rounded border px-2 py-px font-semibold" style={{ ...mobilePill[type], fontSize: cl(9.5, 2.9, 12) }}>{p.type}</span>
+                  </span>
+                  <span className="block font-medium" style={{ color: C.text, fontSize: cl(12, 3.6, 15) }}>{p.mobile}</span>
+                  <span className="block truncate" style={{ color: C.text, fontSize: cl(11.5, 3.5, 14.5) }}>{p.place}</span>
+                  <span className="block truncate" style={{ color: C.muted, fontSize: cl(9.5, 2.9, 12) }}>
+                    {p.gstin ? `GSTIN: ${p.gstin}` : '–'}
+                  </span>
+                </span>
+                <ChevronRight className="shrink-0" style={{ color: C.label, width: cl(18, 5.4, 24), height: cl(18, 5.4, 24) }} />
+              </button>
+            )
+          })}
+          {list.length === 0 && (
+            <p className="py-10 text-center text-sm text-slate-400">कोई रिकॉर्ड नहीं मिला</p>
+          )}
+        </div>
+      </main>
+
+      {/* ---- sticky action, sits right above the bottom nav ---- */}
+      <div className="shrink-0 border-t bg-white px-[clamp(12px,4vw,28px)] py-2.5" style={{ borderColor: C.border }}>
+        <button
+          type="button"
+          onClick={addParty}
+          className="w-full rounded-lg font-semibold text-white inline-flex items-center justify-center gap-2 active:opacity-90 focus-ring"
+          style={{ background: C.green, height: cl(42, 12, 52), fontSize: cl(13, 3.9, 16) }}
+        >
+          <Plus size={18} /> नई पार्टी जोड़ें
+        </button>
+      </div>
+    </div>
   )
 }
