@@ -1,6 +1,7 @@
 import {
   Home, ShoppingBag, ShoppingCart, Grid3x3, Users, Wallet, Download, Upload,
   ArrowLeftRight, Boxes, BarChart3, Settings, Headset, Undo2, RotateCcw,
+  MoreHorizontal,
 } from 'lucide-react'
 
 export const navItems = [
@@ -27,5 +28,5 @@ export const mobileNavItems = [
   { to: '/sales-bill', label: 'बिल', icon: ShoppingBag },
   { to: '/products', label: 'प्रोडक्ट', icon: Grid3x3 },
   { to: '/reports', label: 'रिपोर्ट', icon: BarChart3 },
-  { to: '/more', label: 'अधिक', icon: Settings },
+  { to: '/more', label: 'अधिक', icon: MoreHorizontal },
 ]
