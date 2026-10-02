@@ -34,10 +34,24 @@ const WAVE_BG = svgUrl(`
     <path d='M0 276 C90 276 170 300 250 360 L0 360 Z' fill='url(#b)'/>
     <path d='M1200 276 C1110 276 1030 300 950 360 L1200 360 Z' fill='url(#b)'/>`)
 
-// Slide 3: left hill only (ends before the mountain, which has its own misty hills)
-const WAVE_BG_LEFT = svgUrl(`
-    <path d='M0 202 C140 202 250 236 350 296 C400 330 450 360 520 360 L0 360 Z' fill='url(#a)'/>
-    <path d='M0 276 C90 276 170 300 250 360 L0 360 Z' fill='url(#b)'/>`)
+// Slide 3: left hills only, traced from the prototype card (viewBox = card 1273 x 303).
+// Layer 1 starts at y=174 on the left edge and sinks to the card bottom by x~420 (fading to white);
+// layer 2 is the darker strip at the bottom-left. Both stay well below the icon and end before the mountain.
+const WAVE_BG_LEFT = `url("data:image/svg+xml;utf8,${encodeURIComponent(
+  `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1273 303' preserveAspectRatio='none'>
+    <defs>
+      <linearGradient id='h1' gradientUnits='userSpaceOnUse' x1='0' y1='0' x2='420' y2='0'>
+        <stop offset='0' stop-color='#e6f1e9'/><stop offset='.3' stop-color='#ebf3ec'/>
+        <stop offset='.66' stop-color='#f5f9f5'/><stop offset='1' stop-color='#fcfdfc'/>
+      </linearGradient>
+      <linearGradient id='h2' gradientUnits='userSpaceOnUse' x1='0' y1='0' x2='235' y2='0'>
+        <stop offset='0' stop-color='#dfeee3'/><stop offset='1' stop-color='#eaf4ed'/>
+      </linearGradient>
+    </defs>
+    <path d='M0 174 C6 174 25 175 36 177 C47 179 56 184 66 188 C76 192 86 197 96 203 C106 209 116 218 126 226 C136 234 146 242 156 248 C166 254 174 260 186 265 C198 270 215 275 230 279 C245 283 261 285 276 287 C291 289 303 291 320 293 C337 295 363 299 380 301 C397 303 413 303 420 303 L0 303 Z' fill='url(#h1)'/>
+    <path d='M0 233 C6 234 25 235 36 236 C47 237 56 239 66 241 C76 243 86 246 96 249 C106 252 116 256 126 260 C136 264 146 270 156 274 C166 278 176 283 186 287 C196 291 207 296 215 299 C223 302 232 302 235 303 L0 303 Z' fill='url(#h2)'/>
+  </svg>`
+)}")`
 
 // Prototype loader ring: pale-grey track, green arc (top -> right) then blue arc (lower right).
 const ringMask = (thick) => `radial-gradient(farthest-side, transparent calc(100% - ${thick}), #000 calc(100% - ${thick}))`
