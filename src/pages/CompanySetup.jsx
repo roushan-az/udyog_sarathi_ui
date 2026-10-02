@@ -33,7 +33,7 @@ export default function CompanySetup() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4 py-8">
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4 py-8 lg:block lg:p-0">
       {/* ===================== MOBILE (portrait) ===================== */}
       <div className="lg:hidden w-full max-w-sm bg-white rounded-2xl shadow-card border border-slate-200 overflow-hidden">
         {showMobileIntro ? (
@@ -77,24 +77,24 @@ export default function CompanySetup() {
       </div>
 
       {/* ===================== DESKTOP (landscape) ===================== */}
-      <div className="hidden lg:block w-full max-w-5xl">
-        <div className="flex items-center justify-between mb-4">
+      <div className="hidden lg:flex lg:flex-col w-full min-h-screen px-8 xl:px-14 py-6">
+        <div className="flex items-center justify-between mb-5">
           {step < 5 ? (
-            <p className="text-sm font-semibold text-brandGreen-700 flex items-center gap-1.5">
+            <p className="text-base font-semibold text-brandGreen-700 flex items-center gap-1.5">
               <span className="text-brandGreen-600">➜</span> Step - {step} ({STEP_TITLES[step - 1]})
             </p>
           ) : <span />}
-          <Logo size="sm" />
+          <Logo size="md" />
         </div>
 
-        <div className="flex items-start gap-5">
-          <div className="w-60 shrink-0 rounded-xl border border-slate-200 bg-white p-3 space-y-1">
+        <div className="flex flex-1 items-stretch gap-6">
+          <div className="w-64 xl:w-72 shrink-0 rounded-xl border border-slate-200 bg-white p-4 space-y-2">
             {STEPS.map((label, i) => {
               const idx = i + 1
               const active = idx === step
               return (
-                <div key={label} className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${active ? 'bg-brandGreen-600 text-white' : 'text-slate-500'}`}>
-                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${active ? 'bg-white text-brandGreen-700' : 'bg-slate-100 text-slate-400'}`}>
+                <div key={label} className={`flex items-center gap-3 px-4 py-3.5 rounded-lg text-base font-medium transition-colors ${active ? 'bg-brandGreen-600 text-white' : 'text-slate-500'}`}>
+                  <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${active ? 'bg-white text-brandGreen-700' : 'bg-slate-100 text-slate-400'}`}>
                     {idx}
                   </span>
                   {label}
@@ -103,9 +103,9 @@ export default function CompanySetup() {
             })}
           </div>
 
-          <div className="flex-1 rounded-xl border border-slate-200 bg-white p-6">
+          <div className="flex-1 flex flex-col rounded-xl border border-slate-200 bg-white p-8 xl:p-10 text-base [&_input:not([type=checkbox])]:h-12 [&_select]:h-12 [&_input]:text-base [&_select]:text-base">
             {step === 5 ? (
-              <div className="flex flex-col items-center text-center gap-3 py-8">
+              <div className="flex flex-1 flex-col items-center justify-center text-center gap-3 py-8">
                 <CheckCircle2 size={56} className="text-brandGreen-600" />
                 <h3 className="text-lg font-bold text-slate-800">बधाई हो!</h3>
                 <p className="text-sm text-slate-500 max-w-sm">आपकी कंपनी / व्यवसाय की जानकारी सफलतापूर्वक सेव हो गई है। अब आप ऐप का उपयोग शुरू कर सकते हैं।</p>
@@ -113,8 +113,10 @@ export default function CompanySetup() {
               </div>
             ) : (
               <>
-                <StepFields step={step} form={form} update={update} />
-                <div className="flex items-center justify-end gap-2 mt-6 pt-4 border-t border-slate-100">
+                <div className="flex-1">
+                  <StepFields step={step} form={form} update={update} />
+                </div>
+                <div className="flex items-center justify-end gap-3 mt-8 pt-5 border-t border-slate-100">
                   <Button variant="outline" onClick={step === 1 ? undefined : back}>{step === 1 ? 'रद्द करें' : 'वापस'}</Button>
                   {step < 4 ? (
                     <Button variant="primary" onClick={next}>आगे</Button>
@@ -128,7 +130,7 @@ export default function CompanySetup() {
         </div>
 
         {step < 5 && (
-          <p className="text-xs text-slate-400 mt-3">ⓘ नोट: * वाले फ़ील्ड आवश्यक हैं। आप बाद में Settings से जानकारी बदल सकते हैं।</p>
+          <p className="text-sm text-slate-400 mt-4">ⓘ नोट: * वाले फ़ील्ड आवश्यक हैं। आप बाद में Settings से जानकारी बदल सकते हैं।</p>
         )}
       </div>
     </div>
@@ -138,8 +140,8 @@ export default function CompanySetup() {
 // Field sets for each step. `stacked` = mobile (single column); desktop uses the
 // exact multi-column layout shown in SCR-002's desktop panel.
 function StepFields({ step, form, update, stacked = false }) {
-  const grid2 = stacked ? 'grid grid-cols-1 gap-4' : 'grid grid-cols-2 gap-4'
-  const grid4 = stacked ? 'grid grid-cols-1 gap-4' : 'grid grid-cols-4 gap-4'
+  const grid2 = stacked ? 'grid grid-cols-1 gap-4' : 'grid grid-cols-2 gap-6'
+  const grid4 = stacked ? 'grid grid-cols-1 gap-4' : 'grid grid-cols-4 gap-6'
 
   if (step === 1) {
     return (
@@ -168,7 +170,7 @@ function StepFields({ step, form, update, stacked = false }) {
 
   if (step === 2) {
     return (
-      <div className="space-y-4">
+      <div className={stacked ? "space-y-4" : "space-y-6"}>
         <Field label="दुकान / कार्यालय का पता" required>
           <Input placeholder="पूरा पता दर्ज करें" value={form.address} onChange={update('address')} />
         </Field>
@@ -227,7 +229,7 @@ function StepFields({ step, form, update, stacked = false }) {
 
   // step === 4
   return (
-    <div className="space-y-4">
+    <div className={stacked ? "space-y-4" : "space-y-6"}>
       <div className={grid2}>
         <Field label="PAN नंबर (यदि है)">
           <Input placeholder="PAN नंबर दर्ज करें" value={form.pan} onChange={update('pan')} />

@@ -6,6 +6,8 @@ import growthIcon from '../assets/illus-growth-icon.png'
 import mountainClimber from '../assets/illus-mountain-climber.png'
 
 const SLIDE_COUNT = 3
+// width / height of the desktop card for each slide (from the prototype images)
+const CARD_RATIO = [1278 / 393, 10 / 3, 1273 / 303]
 const SHOW_DESKTOP_DOTS = false // prototype desktop cards have no dots (mobile keeps them)
 
 // Soft rolling-hill background from the prototype (Slide-1 & Slide-3): very pale green,
@@ -17,8 +19,8 @@ const WAVE_DEFS = `<defs>
         <stop offset='1' stop-color='#ebf5ef' stop-opacity='.9'/>
       </linearGradient>
       <linearGradient id='b' x1='0' y1='0' x2='0' y2='1'>
-        <stop offset='0' stop-color='#e8f3ec' stop-opacity='.85'/>
-        <stop offset='1' stop-color='#dcede3' stop-opacity='.85'/>
+        <stop offset='0' stop-color='#ecf5ef' stop-opacity='.85'/>
+        <stop offset='1' stop-color='#e3f0e8' stop-opacity='.85'/>
       </linearGradient>
     </defs>`
 const svgUrl = (inner) =>
@@ -32,10 +34,18 @@ const WAVE_BG = svgUrl(`
     <path d='M0 276 C90 276 170 300 250 360 L0 360 Z' fill='url(#b)'/>
     <path d='M1200 276 C1110 276 1030 300 950 360 L1200 360 Z' fill='url(#b)'/>`)
 
-// Slide 3: left hill only (the mountain illustration on the right is self-contained)
+// Slide 3: left hill only (ends before the mountain, which has its own misty hills)
 const WAVE_BG_LEFT = svgUrl(`
-    <path d='M0 202 C140 202 250 236 350 296 C430 344 500 352 600 352 C800 352 1000 356 1200 358 L1200 360 L0 360 Z' fill='url(#a)'/>
+    <path d='M0 202 C140 202 250 236 350 296 C400 330 450 360 520 360 L0 360 Z' fill='url(#a)'/>
     <path d='M0 276 C90 276 170 300 250 360 L0 360 Z' fill='url(#b)'/>`)
+
+// Prototype loader ring: pale-grey track, green arc (top -> right) then blue arc (lower right).
+const ringMask = (thick) => `radial-gradient(farthest-side, transparent calc(100% - ${thick}), #000 calc(100% - ${thick}))`
+const ringStyle = (size, thick) => ({
+  width: size, height: size, borderRadius: '50%',
+  background: 'conic-gradient(from -35deg, #2f9e4f 0deg 105deg, #1f66b0 105deg 195deg, #dde1e4 195deg 360deg)',
+  WebkitMask: ringMask(thick), mask: ringMask(thick),
+})
 
 const Divider = ({ className = '', align = 'center' }) => (
   <div className={`flex items-center gap-2 ${align === 'left' ? 'justify-start' : 'justify-center'} ${className}`}>
@@ -123,99 +133,102 @@ export default function Splash() {
         {index !== 0 && <p className="mt-3 text-[11px] font-medium text-slate-500">Version 1.0</p>}
       </div>
 
-      {/* ================= DESKTOP (landscape) =================
-          Every size below is in cqw (1cqw = 1% of the card width), taken from the prototype's
-          proportions, so the layout scales exactly like the prototype at any window size. */}
-      <div
-        className="hidden lg:block relative w-full max-w-5xl mx-6 rounded-2xl border border-slate-200 shadow-card overflow-hidden bg-white"
-        style={{
-          containerType: 'inline-size',
-          aspectRatio: '10 / 3',
-          ...(index === 0 ? { backgroundImage: WAVE_BG, backgroundSize: '100% 100%' } : {}),
-          ...(index === 2 ? { backgroundImage: WAVE_BG_LEFT, backgroundSize: '100% 100%' } : {}),
-        }}
-      >
-        {/* ---------- Slide 1 ---------- */}
-        {index === 0 && (
-          <>
-            <div className="absolute" style={{ left: '23.5cqw', top: '0.8cqw', width: '57cqw' }}>
-              <Logo variant="splash" size="xl" className="!w-full" />
-            </div>
-            <span
-              className="absolute rounded-full animate-spin border-slate-200 border-t-brandGreen-600 border-r-brandGreen-600"
-              style={{ left: '50%', marginLeft: '-2.35cqw', top: '17.8cqw', width: '4.7cqw', height: '4.7cqw', borderWidth: '0.55cqw', borderStyle: 'solid' }}
-            />
-            <p className="absolute w-full text-center font-semibold text-navy-800" style={{ top: '24.4cqw', fontSize: '1.6cqw', lineHeight: '2.4cqw' }}>Loading...</p>
-            <p className="absolute w-full text-center font-medium text-slate-700" style={{ top: '27cqw', fontSize: '1.5cqw', lineHeight: '2.4cqw' }}>Version 1.0</p>
-          </>
-        )}
-
-        {/* ---------- Slide 2 ---------- */}
-        {index === 1 && (
-          <>
-            <img
-              src={peopleTalking}
-              alt=""
-              className="absolute mix-blend-multiply"
-              style={{ left: '4.1cqw', top: '50%', transform: 'translateY(-49%)', width: '41.8cqw' }}
-            />
-            <div className="absolute text-center whitespace-nowrap" style={{ left: '70cqw', top: '50%', transform: 'translate(-50%,-50%)' }}>
-              <h2 className="font-extrabold text-navy-700" style={{ fontSize: '3.4cqw', lineHeight: 1.3 }}>
-                हम आपके <span className="text-brandGreen-700">व्यवसाय</span> के साथी हैं
-              </h2>
-              <div className="flex items-center justify-center" style={{ margin: '2.2cqw auto', width: '30cqw', gap: '1cqw' }}>
-                <span className="flex-1 h-px bg-navy-700/30" />
-                <span className="rounded-full bg-brandOrange-500" style={{ width: '1.1cqw', height: '1.1cqw' }} />
-                <span className="flex-1 h-px bg-brandGreen-700/30" />
+      {/* ================= DESKTOP (landscape) — wide CARD like the prototype =================
+          Each slide is a wide card with the prototype's own proportions (slide 1 = 1278x393,
+          slide 2 = 10:3, slide 3 = 1273x303). The card is as wide as the window allows and is
+          centred; every size inside is in cqw (1% of card width), so text, logo, hills and the
+          mountain keep exactly the same relative positions at any screen size. */}
+      <div className="hidden lg:flex fixed inset-0 items-center justify-center bg-white overflow-hidden">
+        <div
+          className="relative overflow-hidden bg-white rounded-2xl border border-slate-200 shadow-card"
+          style={{
+            width: `min(96vw, calc(92vh * ${CARD_RATIO[index]}))`,
+            aspectRatio: `${CARD_RATIO[index]}`,
+            containerType: 'inline-size',
+            ...(index === 0 ? { backgroundImage: WAVE_BG, backgroundSize: '100% 100%' } : {}),
+            ...(index === 2 ? { backgroundImage: WAVE_BG_LEFT, backgroundSize: '100% 100%' } : {}),
+          }}
+        >
+          {/* ---------- Slide 1 ---------- */}
+          {index === 0 && (
+            <>
+              <div className="absolute" style={{ left: '23.5cqw', top: '1.2cqw', width: '57cqw' }}>
+                <Logo variant="splash" size="xl" className="!w-full" />
               </div>
-              <p className="font-medium text-slate-800" style={{ fontSize: '2.35cqw', lineHeight: 1.4 }}>
-                व्यवसाय को समझने, सीखने, सुझाव पाने,<br />
-                रिपोर्ट देखने और अपने व्यवसाय को<br />
-                बेहतर जानने में हम आपका साथ देते हैं।
-              </p>
-            </div>
-          </>
-        )}
+              <span
+                className="absolute animate-spin"
+                style={{ left: '50%', marginLeft: '-2.35cqw', top: '18.4cqw', ...ringStyle('4.7cqw', '0.6cqw') }}
+              />
+              <p className="absolute w-full text-center font-semibold text-navy-800" style={{ top: '24.1cqw', fontSize: '1.8cqw', lineHeight: '2.4cqw' }}>Loading...</p>
+              <p className="absolute w-full text-center font-semibold text-navy-800" style={{ top: '27.2cqw', fontSize: '1.8cqw', lineHeight: '2.4cqw' }}>Version 1.0</p>
+            </>
+          )}
 
-        {/* ---------- Slide 3 ---------- */}
-        {index === 2 && (
-          <>
-            <img
-              src={growthIcon}
-              alt=""
-              className="absolute"
-              style={{ left: '8.6cqw', top: 'calc(50% - 2.9cqw)', transform: 'translateY(-50%)', width: '17.6cqw' }}
-            />
-            <div className="absolute text-center whitespace-nowrap" style={{ left: '43.5cqw', top: '50%', transform: 'translate(-50%,-50%)' }}>
-              <h2 className="font-extrabold text-navy-700" style={{ fontSize: '3.4cqw', lineHeight: 1.2 }}>
-                हर बड़ा व्यवसाय<br />एक छोटे कदम से<br /><span className="text-brandGreen-700">शुरू होता है ।</span>
-              </h2>
-              <div className="flex items-center justify-center" style={{ margin: '0.15cqw auto', width: '20cqw', gap: '0.9cqw' }}>
-                <span className="flex-1 h-px bg-navy-700/30" />
-                <span className="rounded-full bg-brandOrange-500" style={{ width: '1cqw', height: '1cqw' }} />
-                <span className="flex-1 h-px bg-brandGreen-700/30" />
+          {/* ---------- Slide 2 ---------- */}
+          {index === 1 && (
+            <>
+              <img
+                src={peopleTalking}
+                alt=""
+                className="absolute mix-blend-multiply"
+                style={{ left: '4.1cqw', top: '50%', transform: 'translateY(-49%)', width: '41.8cqw' }}
+              />
+              <div className="absolute text-center whitespace-nowrap" style={{ left: '70cqw', top: '50%', transform: 'translate(-50%,-50%)' }}>
+                <h2 className="font-extrabold text-navy-700" style={{ fontSize: '3.4cqw', lineHeight: 1.3 }}>
+                  हम आपके <span className="text-brandGreen-700">व्यवसाय</span> के साथी हैं
+                </h2>
+                <div className="flex items-center justify-center" style={{ margin: '2.2cqw auto', width: '30cqw', gap: '1cqw' }}>
+                  <span className="flex-1 h-px bg-navy-700/30" />
+                  <span className="rounded-full bg-brandOrange-500" style={{ width: '1.1cqw', height: '1.1cqw' }} />
+                  <span className="flex-1 h-px bg-brandGreen-700/30" />
+                </div>
+                <p className="font-medium text-slate-800" style={{ fontSize: '2.35cqw', lineHeight: 1.4 }}>
+                  व्यवसाय को समझने, सीखने, सुझाव पाने,<br />
+                  रिपोर्ट देखने और अपने व्यवसाय को<br />
+                  बेहतर जानने में हम आपका साथ देते हैं।
+                </p>
               </div>
-              <p className="font-medium text-slate-800" style={{ fontSize: '2.5cqw', lineHeight: 1.3 }}>
+            </>
+          )}
+
+          {/* ---------- Slide 3 (positions measured from the prototype, 1273 px = 100cqw) ---------- */}
+          {index === 2 && (
+            <>
+              <img
+                src={growthIcon}
+                alt=""
+                className="absolute"
+                style={{ left: '9cqw', top: '9.4cqw', transform: 'translateY(-50%)', width: '17.6cqw' }}
+              />
+              <h2
+                className="absolute text-center whitespace-nowrap font-bold text-navy-700"
+                style={{ left: '43.6cqw', top: '8.4cqw', transform: 'translate(-50%,-50%)', fontSize: '3.73cqw', lineHeight: 1.2 }}
+              >
+                हर बड़ा व्यवसाय<br />एक छोटे कदम से<br /><span className="text-[#1e8a2f]">शुरू होता है ।</span>
+              </h2>
+              <p
+                className="absolute text-center whitespace-nowrap font-semibold text-navy-700"
+                style={{ left: '43.6cqw', top: '19.4cqw', transform: 'translate(-50%,-50%)', fontSize: '2.75cqw', lineHeight: 1.3 }}
+              >
                 सीखते रहिए, बढ़ते रहिए,<br />सफल होते रहिए ।
               </p>
-            </div>
-            {/* Mountain scene: full crop from the prototype (both ridges + flag peak), left edge & top feathered */}
-            <img
-              src={mountainClimber}
-              alt=""
-              className="absolute mix-blend-multiply"
-              style={{
-                right: '0.7cqw', bottom: '0.3cqw', width: '37cqw', height: 'auto',
-                WebkitMaskImage: 'linear-gradient(to right, transparent, #000 14%), linear-gradient(to bottom, transparent, #000 18%)',
-                WebkitMaskComposite: 'source-in',
-                maskImage: 'linear-gradient(to right, transparent, #000 14%), linear-gradient(to bottom, transparent, #000 18%)',
-                maskComposite: 'intersect',
-              }}
-            />
-          </>
-        )}
+              <img
+                src={mountainClimber}
+                alt=""
+                className="absolute mix-blend-multiply"
+                style={{
+                  right: 0, bottom: 0, width: '41.5cqw', height: 'auto',
+                  WebkitMaskImage: 'linear-gradient(to right, transparent, #000 14%), linear-gradient(to bottom, transparent, #000 18%)',
+                  WebkitMaskComposite: 'source-in',
+                  maskImage: 'linear-gradient(to right, transparent, #000 14%), linear-gradient(to bottom, transparent, #000 18%)',
+                  maskComposite: 'intersect',
+                }}
+              />
+            </>
+          )}
 
-        {SHOW_DESKTOP_DOTS && <div className="absolute bottom-4 left-1/2 -translate-x-1/2"><SlideDots index={index} /></div>}
+          {SHOW_DESKTOP_DOTS && <div className="absolute bottom-4 left-1/2 -translate-x-1/2"><SlideDots index={index} /></div>}
+        </div>
       </div>
     </div>
   )
