@@ -1,323 +1,430 @@
-import React, { useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import {
-  Share2, Printer, FileText, Save, Paperclip, Plus, Search, Settings, Phone, Info, Calendar,
-  Trash2, FilePlus, FileDown, CheckCircle2, ArrowLeft, MoreVertical, User, ChevronDown,
+  Share2, Printer, Save, Paperclip, Plus, Search, Settings, Calendar, Trash2, CheckCircle2,
+  ArrowLeft, MoreVertical, User, ChevronDown, FileText,
 } from 'lucide-react'
 import Layout from '../components/layout/Layout'
 import MobileHeader from '../components/layout/MobileHeader'
 import PageHeader from '../components/common/PageHeader'
-import { Field, Input, Select, Textarea } from '../components/common/Form'
 import Button from '../components/common/Button'
-import LineItemsTable, { newLineItem } from '../components/common/LineItemsTable'
 import { useApp } from '../context/AppContext'
 
-const TABS = ['बिल जानकारी', 'ग्राहक जानकारी', 'उत्पाद विवरण', 'GST जानकारी', 'अन्य जानकारी', 'संलग्नक', 'रिटर्न / क्रेडिट नोट']
+/* ---------- shared form state: ONE source of truth for desktop + mobile ---------- */
+function useReturnForm() {
+  const { pushToast } = useApp()
+  const [invoiceNo, setInvoiceNo] = useState('INV-1689')
+  const [invoiceDate, setInvoiceDate] = useState('2025-05-17')
+  const [customer, setCustomer] = useState('Shiv Traders')
+  const [returnNo, setReturnNo] = useState('SRN-0042')
+  const [returnDate, setReturnDate] = useState('2025-05-20')
+  const [reason, setReason] = useState(REASONS[0])
+  const [otherReason, setOtherReason] = useState('गुणवत्ता सही नहीं थी ।')
+  const [items, setItems] = useState([newRow({ name: 'मैदा 1kg', hsn: '1101', rate: '110.00' })])
+  const [file, setFile] = useState(null)
+  const [errors, setErrors] = useState({})
 
-const gstSummary = [
-  { label: 'Taxable Value (₹)', value: '1,720.00' },
-  { label: 'Total CGST (₹)', value: '86.00' },
-  { label: 'Total SGST (₹)', value: '86.00' },
-  { label: 'Total IGST (₹)', value: '0.00' },
-  { label: 'Total Cess (₹)', value: '0.00' },
-]
+  const clearErr = (k) => setErrors((e) => (e[k] ? { ...e, [k]: undefined } : e))
+  const updateItem = (id, key, value) => setItems((arr) => arr.map((r) => (r.id === id ? { ...r, [key]: value } : r)))
+  const removeItem = (id) => setItems((arr) => arr.filter((r) => r.id !== id))
+  const addItem = () => setItems((arr) => [...arr, newRow()])
+  const clearItems = () => setItems([])
 
-const rules = [
-  'सभी जानकारी सही और पूर्ण भरें।',
-  'यह बिल GSTR-1 और GSTR-3B में आयोग्य होगा।',
-  'HSN, GST Rate, Taxable Value सही भरें।',
-  'रिटर्न / क्रेडिट नोट का उपयोग केवल आवश्यक होने पर करें।',
-  'संलग्नक अधिकतम साइज़ 10 MB तक अपलोड करें।',
-]
+  const rows = items.map((r) => ({ r, ...lineCalc(r) }))
+  const totals = rows.reduce(
+    (t, x) => ({
+      taxable: t.taxable + x.taxable, cgst: t.cgst + x.cgst, sgst: t.sgst + x.sgst,
+      igst: t.igst + x.igst, cess: t.cess + x.cess, total: t.total + x.net,
+    }),
+    { taxable: 0, cgst: 0, sgst: 0, igst: 0, cess: 0, total: 0 },
+  )
 
-const dataUsage = [
-  'Sales Bill का डेटा GSTR-1, GSTR-3B, Sales Register, Day Book, Outstanding आदि रिपोर्ट में उपयोग होगा।',
-  'Taxable Value, Tax Amount और HSN Summary रिपोर्ट में शामिल होगा।',
-  'रिटर्न / क्रेडिट नोट का डेटा GSTR-1 और GSTR-3B में समायोजित होगा।',
-]
+  const save = () => {
+    const errs = {}
+    if (!invoiceNo.trim()) errs.invoiceNo = 'इनवॉइस नंबर दर्ज करें'
+    if (!returnNo.trim()) errs.returnNo = 'रिटर्न / क्रेडिट नोट नंबर दर्ज करें'
+    setErrors(errs)
+    const first = errs.invoiceNo || errs.returnNo
+    if (first) return pushToast(first, 'warn')
+    if (!reason) return pushToast('रिटर्न का कारण चुनें', 'warn')
+    if (totals.total <= 0) return pushToast('कम से कम एक आइटम जोड़ें', 'warn')
+    if (totals.total > ORIGINAL_BILL_AMOUNT) return pushToast('रिटर्न राशि मूल बिल राशि से ज़्यादा नहीं हो सकती', 'warn')
+    pushToast('रिटर्न / क्रेडिट नोट सफलतापूर्वक सेव हो गया')
+  }
 
-const summaryRows = [
-  ['कुल आइटम :', '3'], ['कुल मात्रा :', '5.00'], ['कुल कर योग्य मूल्य :', '₹ 1,720.00'],
-  ['कुल CGST :', '₹ 86.00'], ['कुल SGST :', '₹ 86.00'], ['कुल IGST :', '₹ 0.00'],
-  ['कुल Cess :', '₹ 0.00'], ['कुल देय राशि :', '₹ 1,892.00'],
-]
+  return {
+    pushToast, invoiceNo, setInvoiceNo, invoiceDate, setInvoiceDate, customer, setCustomer,
+    returnNo, setReturnNo, returnDate, setReturnDate, reason, setReason, otherReason, setOtherReason,
+    items, rows, updateItem, removeItem, addItem, clearItems, file, setFile, totals, errors, clearErr, save,
+  }
+}
 
-const card = 'bg-white rounded-xl border border-slate-200 shadow-sm p-3'
-const h3 = 'font-bold text-slate-800 text-sm mb-2'
-const hint = 'text-[10px] text-slate-500 mt-1'
+/* GST-inclusive rate: taxable = (qty x rate - discount) / (1 + GST%), tax split into CGST + SGST */
+function lineCalc(r) {
+  const gross = num(r.qty) * num(r.rate)
+  const net = gross - Math.min(num(r.disc), gross)
+  const taxable = net / (1 + num(r.gst) / 100)
+  const tax = net - taxable
+  return { gross, net, taxable, cgst: tax / 2, sgst: tax / 2, igst: 0, cess: 0 }
+}
 
-/* small input with an icon on the right, as in the prototype */
-function IconInput({ icon: Icon, ...props }) {
+/* true from 1024px (Tailwind `lg`) upwards */
+function useIsDesktop() {
+  const query = '(min-width: 1024px)'
+  const get = () => typeof window !== 'undefined' && window.matchMedia(query).matches
+  const [match, setMatch] = useState(get)
+  useEffect(() => {
+    const mq = window.matchMedia(query)
+    const onChange = (e) => setMatch(e.matches)
+    setMatch(mq.matches)
+    mq.addEventListener ? mq.addEventListener('change', onChange) : mq.addListener(onChange)
+    return () => (mq.removeEventListener ? mq.removeEventListener('change', onChange) : mq.removeListener(onChange))
+  }, [])
+  return match
+}
+
+export default function SalesReturn() {
+  const form = useReturnForm()
+  const isDesktop = useIsDesktop()
   return (
-    <div className="relative">
-      <Input {...props} />
-      <Icon size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+    <Layout title="Sales Return" subtitle="सेल्स रिटर्न / क्रेडिट नोट">
+      {/* Only ONE view is mounted at a time: wide screens get the desktop layout,
+          phones / small tablets get the mobile layout (MobileHeader + bottom nav). */}
+      {isDesktop ? <SalesReturnDesktop f={form} /> : <SalesReturnMobile f={form} />}
+    </Layout>
+  )
+}
+
+/* =====================================================================
+   DESKTOP VIEW (lg and up) — prototype SCR-004A (wide screen)
+   ===================================================================== */
+const DINPUT = 'w-full h-11 rounded-lg border bg-white text-[13px] font-semibold outline-none focus:border-green-600 placeholder:text-slate-300'
+
+function DField({ label, required, children, error }) {
+  return (
+    <div className="min-w-0">
+      <span className="block text-[12px] font-semibold mb-1.5" style={{ color: C.label }}>
+        {label}{required && <span className="text-red-500"> *</span>}
+      </span>
+      {children}
+      {error && <p role="alert" className="mt-1 text-[11px] font-semibold text-red-600">{error}</p>}
     </div>
   )
 }
 
-export default function SalesBill() {
-  const { pushToast } = useApp()
-  const [activeTab, setActiveTab] = useState(0)
-  const [billType, setBillType] = useState('Tax Invoice (GST)')
-  const [items, setItems] = useState([newLineItem(), newLineItem()])
-  const [returnMode, setReturnMode] = useState('Credit Note')
-  const [remarks, setRemarks] = useState('समय पर डिलीवरी करें।')
-  const [retRemarks, setRetRemarks] = useState('कृपया जाँच कर सुधार करें।')
+function DInput({ icon: Icon, error, readOnly, center, onIconClick, iconLabel, ...props }) {
+  return (
+    <div className="relative">
+      <input
+        readOnly={readOnly}
+        {...props}
+        className={`${DINPUT} ${Icon ? 'pl-3 pr-10' : 'px-3'} ${center ? 'text-right' : ''} ${readOnly ? 'bg-slate-100' : ''}`}
+        style={{ borderColor: error ? '#dc2626' : C.field, color: C.text }}
+      />
+      {Icon && (onIconClick
+        ? <button type="button" aria-label={iconLabel} onClick={onIconClick} className="absolute right-0 top-0 h-11 px-3 flex items-center focus-ring rounded-r-lg"><Icon size={17} style={{ color: C.label }} /></button>
+        : <Icon size={17} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: C.muted }} />)}
+    </div>
+  )
+}
+
+function DDate({ value, onChange, label }) {
+  return (
+    <div className="relative h-11 rounded-lg border bg-white flex items-center focus-within:border-green-600" style={{ borderColor: C.field }}>
+      <span className="pl-3 pr-10 text-[13px] font-semibold" style={{ color: C.text }}>{showDate(value)}</span>
+      <Calendar size={17} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: C.muted }} />
+      <input
+        type="date"
+        aria-label={label}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onClick={(e) => { try { e.currentTarget.showPicker?.() } catch { /* unsupported */ } }}
+        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+      />
+    </div>
+  )
+}
+
+function DCard({ title, sub, innerRef, children }) {
+  return (
+    <section ref={innerRef} className="rounded-xl border bg-white p-4 xl:p-5" style={{ borderColor: C.border, scrollMarginTop: 90 }}>
+      <h2 className="text-[16px] font-bold mb-4" style={{ color: C.label }}>
+        {title}{sub && <span className="ml-1.5 text-[14px] font-semibold">{sub}</span>}
+      </h2>
+      {children}
+    </section>
+  )
+}
+
+const TH = 'px-2 py-2.5 text-[11px] font-bold border border-slate-200 text-center leading-tight whitespace-nowrap'
+const TD = 'border border-slate-200 text-center text-[12px]'
+const cellIn = 'w-full min-w-0 h-10 bg-transparent px-1.5 text-center outline-none focus:bg-green-50'
+
+function SalesReturnDesktop({ f }) {
+  const {
+    pushToast, invoiceNo, setInvoiceNo, invoiceDate, setInvoiceDate, customer, setCustomer,
+    returnNo, setReturnNo, returnDate, setReturnDate, reason, setReason, otherReason, setOtherReason,
+    rows, updateItem, removeItem, addItem, clearItems, file, setFile, totals, errors, clearErr, save,
+  } = f
+  const refs = { info: useRef(null), items: useRef(null), summary: useRef(null) }
+  const [step, setStep] = useState(0)
+
+  // highlight the step whose section is currently in view
+  useEffect(() => {
+    if (typeof IntersectionObserver === 'undefined') return undefined
+    const els = STEPS.map((s) => refs[s.target].current)
+    const io = new IntersectionObserver(
+      (entries) => entries.forEach((en) => { if (en.isIntersecting) setStep(els.indexOf(en.target)) }),
+      { rootMargin: '-15% 0px -60% 0px' },
+    )
+    els.forEach((el) => el && io.observe(el))
+    return () => io.disconnect()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const goTo = (i) => {
+    setStep(i)
+    refs[STEPS[i].target].current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+  const onFile = (e) => {
+    const picked = e.target.files?.[0]
+    if (!picked) return
+    if (picked.size > 10 * 1024 * 1024) {
+      e.target.value = ''
+      return pushToast('फ़ाइल का साइज़ 10 MB से ज़्यादा नहीं होना चाहिए', 'warn')
+    }
+    setFile(picked)
+  }
+  const tiles = [
+    ['टैक्सेबल वैल्यू (₹)', totals.taxable],
+    ['CGST (₹)', totals.cgst],
+    ['SGST (₹)', totals.sgst],
+    ['IGST (₹)', totals.igst],
+    ['Cess (₹)', totals.cess],
+  ]
 
   return (
-    <Layout title="Sales Bill" subtitle="नया बिक्री बिल">
-      {/* ===================== DESKTOP (lg and up) ===================== */}
-      <div className="hidden lg:block">
-      {/* Desktop: full page header with action buttons */}
-      <div>
-        <PageHeader
-          code="SCR-004"
-          title="Sales Bill (नया बिक्री बिल)"
-          subtitle="New Sales Bill + GST (HSN & Rate) + Sales Return / Credit Note + Other Information"
-          actions={
-            <>
-              <Button variant="outline" icon={Share2} size="sm">PDF / शेयर करें</Button>
-              <Button variant="outline" icon={Printer} size="sm">प्रिंट करें</Button>
-              <Button variant="outline" icon={FileText} size="sm">ड्राफ्ट सेव करें</Button>
-              <Button variant="primary" icon={Save} size="sm" onClick={() => pushToast('बिल सफलतापूर्वक सेव हो गया')}>बिल सेव करें</Button>
-            </>
-          }
-        />
-      </div>
+    <div>
+      <PageHeader
+        code="SCR-004A"
+        title="सेल्स रिटर्न / क्रेडिट नोट"
+        subtitle="Sales Return / Credit Note"
+        actions={
+          <>
+            <Button variant="outline" icon={Share2} size="sm" onClick={() => pushToast('PDF तैयार किया जा रहा है', 'info')}>PDF / शेयर करें</Button>
+            <Button variant="outline" icon={Printer} size="sm" onClick={() => pushToast('प्रिंट तैयार किया जा रहा है', 'info')}>प्रिंट करें</Button>
+            <Button variant="primary" icon={Save} size="sm" onClick={save}>सेव करें</Button>
+          </>
+        }
+      />
 
-      {/* Stepper: numbered circles joined by lines */}
-      <div className="flex items-center mb-3 overflow-x-auto scroll-x">
-        {TABS.map((t, i) => (
-          <React.Fragment key={t}>
-            <button onClick={() => setActiveTab(i)} className="shrink-0 flex items-center gap-2 focus-ring rounded">
-              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold border ${
-                activeTab === i ? 'bg-navy-600 text-white border-navy-600' : 'bg-white text-slate-700 border-slate-400'
-              }`}>{i + 1}</span>
-              <span className={`text-xs font-semibold ${activeTab === i ? 'text-navy-600' : 'text-slate-800'}`}>{t}</span>
-            </button>
-            {i < TABS.length - 1 && <span className="flex-1 min-w-[16px] h-px bg-slate-300 mx-3" />}
-          </React.Fragment>
-        ))}
-      </div>
-
-      {/* Main area: left 3/4 (3 cards + product table) | right 1/4 (GST, attachments, return) */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 mb-3">
-        <div className="lg:col-span-3 space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-            {/* 1. Bill info */}
-            <div className={card}>
-              <h3 className={h3}>1. बिल जानकारी</h3>
-              <div className="space-y-2.5">
-                <Field label="बिल नं." required><IconInput icon={Settings} defaultValue="INV-1756" /></Field>
-                <Field label="बिल दिनांक" required><IconInput icon={Calendar} defaultValue="17/05/2025" /></Field>
-                <Field label="बिल प्रकार" required>
-                  <Select value={billType} onChange={(e) => setBillType(e.target.value)}>
-                    <option>Tax Invoice (GST)</option>
-                    <option>Retail</option>
-                    <option>Exempt</option>
-                    <option>SEZ</option>
-                    <option>Export</option>
-                  </Select>
-                </Field>
-                <p className={hint}>(Tax Invoice / Retail / Exempt / SEZ / Export)</p>
-              </div>
-            </div>
-
-            {/* 2. Customer info */}
-            <div className={card}>
-              <h3 className={h3}>2. ग्राहक जानकारी</h3>
-              <div className="space-y-2.5">
-                <Field label="ग्राहक नाम" required><Input defaultValue="Shiv Traders" /></Field>
-                <Field label="मोबाइल नं."><IconInput icon={Phone} defaultValue="9876543210" /></Field>
-                <Field label="GSTIN (यदि हो)"><Input defaultValue="10ABCDE1234F1Z5" /></Field>
-                <Field label="राज्य / आपूर्ति स्थान" required>
-                  <Select defaultValue="Bihar (10)"><option>Bihar (10)</option><option>Uttar Pradesh (09)</option></Select>
-                </Field>
-              </div>
-            </div>
-
-            {/* 3. Transport (heading as in prototype) */}
-            <div className={card}>
-              <h3 className={h3}>3. उत्पाद विवरण</h3>
-              <div className="space-y-2.5">
-                <Field label="Transport / Delivery Details (यदि आवश्यक)">
-                  <Textarea rows={3} defaultValue={'Transport Name: Mahavir Transport\nVehicle No.: BR01AB1234'} />
-                </Field>
-                <Field label="E-way Bill No. (यदि आवश्यक)"><IconInput icon={Info} defaultValue="4815 9876 1234" /></Field>
-                <Field label="Remarks (टिप्पणी)">
-                  <Textarea rows={2} maxLength={250} value={remarks} onChange={(e) => setRemarks(e.target.value)} />
-                  <p className="text-[10px] text-slate-500 text-right">{remarks.length}/250</p>
-                </Field>
-              </div>
-            </div>
-          </div>
-
-          {/* 6. Product details */}
-          <div className={card}>
-            <h3 className={h3}>6. उत्पाद विवरण</h3>
-            <LineItemsTable items={items} onChange={setItems} />
-          </div>
-        </div>
-
-        {/* Right column (2-up on tablets, stacked on phones / large screens) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-3 content-start">
-          {/* 4. GST summary */}
-          <div className={card}>
-            <h3 className={h3}>4. GST जानकारी</h3>
-            <div className="grid grid-cols-3 gap-2 text-center">
-              {gstSummary.map((g) => (
-                <div key={g.label} className="py-1.5">
-                  <p className="text-[10px] text-slate-600">{g.label}</p>
-                  <p className="text-base font-bold text-slate-800">{g.value}</p>
-                </div>
-              ))}
-              <div className="rounded-lg bg-emerald-50 border border-emerald-200 py-1.5 px-1">
-                <p className="text-[10px] font-medium text-green-800">Grand Total (₹)<br />(कुल देय राशि)</p>
-                <p className="text-base font-bold text-slate-800">1,892.00</p>
-              </div>
-            </div>
-          </div>
-
-          {/* 5. Attachments */}
-          <div className={card}>
-            <h3 className={h3}>5. संलग्नक (Attachments)</h3>
-            <label className="flex flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-green-500 py-3 text-center cursor-pointer">
-              <span className="flex items-center gap-1.5 text-xs font-semibold text-green-700"><Paperclip size={14} />+ Attachment जोड़ें</span>
-              <span className="text-[10px] text-slate-600">(फोटो / PDF / Document)</span>
-              <span className="text-[10px] text-slate-600">अधिकतम साइज़: 10 MB</span>
-              <input type="file" className="hidden" />
-            </label>
-          </div>
-
-          {/* 7. Return / credit note */}
-          <div className={`${card} md:col-span-2 lg:col-span-1`}>
-            <h3 className={h3}>7. रिटर्न / क्रेडिट नोट</h3>
-            <div className="inline-flex rounded overflow-hidden border border-slate-200 mb-2 text-[11px] font-semibold">
-              {['Credit Note', 'Sales Return'].map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setReturnMode(m)}
-                  className={`px-3 py-1 focus-ring ${returnMode === m ? 'bg-navy-600 text-white' : 'bg-white text-slate-700'}`}
-                >
-                  {m}
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px] xl:grid-cols-[minmax(0,1fr)_320px] mb-3">
+        {/* ================= LEFT: form ================= */}
+        <div className="min-w-0 space-y-4">
+          {/* stepper */}
+          <nav aria-label="चरण" className="flex items-center px-2 pt-1">
+            {STEPS.map((s, i) => (
+              <React.Fragment key={s.label}>
+                <button type="button" onClick={() => goTo(i)} aria-current={step === i ? 'step' : undefined} className="shrink-0 flex items-center gap-2 focus-ring rounded">
+                  <span className="w-7 h-7 rounded-full flex items-center justify-center text-[13px] font-semibold border" style={{
+                    background: step === i ? C.green : '#fff', color: step === i ? '#fff' : C.text, borderColor: step === i ? C.green : '#94a3b8',
+                  }}>{i + 1}</span>
+                  <span className="text-[12.5px] font-semibold" style={{ color: step === i ? C.green : C.text }}>{s.label}</span>
                 </button>
-              ))}
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 mb-2">
-              <div className="sm:col-span-3">
-                <Field label="मूल बिल संदर्भ (Original Invoice Reference)" required><IconInput icon={Search} defaultValue="INV-1689" /></Field>
-              </div>
-              <div className="sm:col-span-2">
-                <Field label="क्रेडिट नोट क्र." required><IconInput icon={Settings} defaultValue="CN-1023" /></Field>
-              </div>
-            </div>
+                {i < STEPS.length - 1 && <span className="flex-1 h-px bg-slate-300 mx-4" />}
+              </React.Fragment>
+            ))}
+          </nav>
 
-            <p className="text-xs font-medium text-slate-800 mb-1">रिटर्न विवरण (रिटर्न के लिए)</p>
-            <div className="scroll-x">
-              <table className="w-full min-w-[260px] text-[10px] border border-slate-200 border-collapse">
+          {/* 1. original invoice reference */}
+          <DCard title="1. बिल संदर्भ" sub="(Original Invoice Reference)" innerRef={refs.info}>
+            <div className="grid gap-4 grid-cols-2 xl:grid-cols-4">
+              <DField label="इनवॉइस नंबर" required error={errors.invoiceNo}>
+                <DInput icon={Search} iconLabel="इनवॉइस खोजें" onIconClick={() => pushToast(`${invoiceNo || 'इनवॉइस'} खोजा जा रहा है`, 'info')} value={invoiceNo} error={errors.invoiceNo} onChange={(e) => { setInvoiceNo(e.target.value); clearErr('invoiceNo') }} aria-label="इनवॉइस नंबर" />
+              </DField>
+              <DField label="इनवॉइस दिनांक">
+                <DDate value={invoiceDate} onChange={setInvoiceDate} label="इनवॉइस दिनांक" />
+              </DField>
+              <DField label="ग्राहक का नाम" required>
+                <DInput icon={User} value={customer} onChange={(e) => setCustomer(e.target.value)} aria-label="ग्राहक का नाम" />
+              </DField>
+              <DField label="मूल बिल राशि (₹)">
+                <DInput readOnly center value={money(ORIGINAL_BILL_AMOUNT)} aria-label="मूल बिल राशि" />
+              </DField>
+            </div>
+          </DCard>
+
+          {/* 2. return info */}
+          <DCard title="2. रिटर्न जानकारी">
+            <div className="grid gap-4 grid-cols-2 xl:grid-cols-4">
+              <DField label="रिटर्न / क्रेडिट नोट नंबर" required error={errors.returnNo}>
+                <DInput icon={Settings} value={returnNo} error={errors.returnNo} onChange={(e) => { setReturnNo(e.target.value); clearErr('returnNo') }} aria-label="रिटर्न नंबर" />
+              </DField>
+              <DField label="रिटर्न दिनांक" required>
+                <DDate value={returnDate} onChange={setReturnDate} label="रिटर्न दिनांक" />
+              </DField>
+              <DField label="रिटर्न का कारण" required>
+                <div className="relative">
+                  <select value={reason} onChange={(e) => setReason(e.target.value)} aria-label="रिटर्न का कारण" className={`${DINPUT} appearance-none pl-3 pr-9`} style={{ borderColor: C.field, color: C.text }}>
+                    {REASONS.map((r) => <option key={r}>{r}</option>)}
+                  </select>
+                  <ChevronDown size={17} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: C.text }} />
+                </div>
+              </DField>
+              <DField label="अन्य कारण (यदि हो)">
+                <div className="relative rounded-lg border bg-white focus-within:border-green-600" style={{ borderColor: C.field }}>
+                  <textarea rows={3} maxLength={250} value={otherReason} onChange={(e) => setOtherReason(e.target.value)} aria-label="अन्य कारण" className="block w-full resize-none bg-transparent px-3 pt-2.5 pb-5 text-[13px] outline-none" style={{ color: C.text }} />
+                  <span className="absolute right-2.5 bottom-1 text-[10px]" style={{ color: C.muted }}>{otherReason.length}/250</span>
+                </div>
+              </DField>
+            </div>
+          </DCard>
+
+          {/* 3. items */}
+          <DCard title="3. आइटम विवरण" sub="(रिटर्न के लिए आइटम)" innerRef={refs.items}>
+            <div className="overflow-x-auto rounded-lg">
+              <table className="w-full min-w-[980px] border-collapse" style={{ color: C.text }}>
                 <thead>
-                  <tr className="bg-slate-50 text-slate-800">
-                    {['#', 'उत्पाद नाम', 'Qty', 'Rate (₹)', 'Amount (₹)', ''].map((h, i) => (
-                      <th key={i} className="font-semibold py-1 px-1.5 border border-slate-200">{h}</th>
-                    ))}
+                  <tr className="bg-slate-50" style={{ color: C.label }}>
+                    <th rowSpan={2} className={TH}>#</th>
+                    <th rowSpan={2} className={`${TH} min-w-[130px]`}>प्रोडक्ट नाम</th>
+                    <th rowSpan={2} className={TH}>HSN<br />Code</th>
+                    <th rowSpan={2} className={TH}>Qty<br /><span className="font-medium">(रिटर्न)</span></th>
+                    <th rowSpan={2} className={TH}>Unit</th>
+                    <th rowSpan={2} className={TH}>रेट (₹)</th>
+                    <th rowSpan={2} className={TH}>डिस्काउंट (₹)</th>
+                    <th rowSpan={2} className={TH}>टैक्सेबल<br />वैल्यू (₹)</th>
+                    <th rowSpan={2} className={TH}>GST %</th>
+                    <th colSpan={3} className={TH}>टैक्स (₹)</th>
+                    <th rowSpan={2} className={TH}>Cess (₹)<br /><span className="font-medium">(यदि लागू हो)</span></th>
+                    <th rowSpan={2} className={TH}>राशि (₹)</th>
+                    <th rowSpan={2} className={TH}>एक्शन</th>
+                  </tr>
+                  <tr className="bg-slate-50" style={{ color: C.label }}>
+                    <th className={TH}>CGST (₹)</th><th className={TH}>SGST (₹)</th><th className={TH}>IGST (₹)</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr className="text-slate-700 text-center">
-                    <td className="py-1 border border-slate-200">1</td>
-                    <td className="py-1 px-1.5 border border-slate-200 text-left">मैदा 1kg</td>
-                    <td className="py-1 border border-slate-200">1.00</td>
-                    <td className="py-1 border border-slate-200">110.00</td>
-                    <td className="py-1 border border-slate-200">110.00</td>
-                    <td className="py-1 border border-slate-200"><Trash2 size={12} className="text-red-500 inline" /></td>
-                  </tr>
+                  {rows.map(({ r, taxable, cgst, sgst, igst, cess, net }, i) => (
+                    <tr key={r.id} className="hover:bg-slate-50/60">
+                      <td className={`${TD} w-10`}>{i + 1}</td>
+                      <td className={TD}><input value={r.name} onChange={(e) => updateItem(r.id, 'name', e.target.value)} placeholder="प्रोडक्ट" aria-label="प्रोडक्ट नाम" className={`${cellIn} text-left`} /></td>
+                      <td className={`${TD} w-[76px]`}><input value={r.hsn} onChange={(e) => updateItem(r.id, 'hsn', e.target.value.replace(/\D/g, ''))} aria-label="HSN" className={cellIn} /></td>
+                      <td className={`${TD} w-[72px]`}><input value={r.qty} inputMode="decimal" onChange={(e) => updateItem(r.id, 'qty', e.target.value.replace(/[^0-9.]/g, ''))} aria-label="मात्रा" className={cellIn} /></td>
+                      <td className={`${TD} w-[70px]`}>
+                        <select value={r.unit} onChange={(e) => updateItem(r.id, 'unit', e.target.value)} aria-label="Unit" className="w-full h-10 bg-transparent text-center outline-none focus:bg-green-50">{UNITS.map((u) => <option key={u}>{u}</option>)}</select>
+                      </td>
+                      <td className={`${TD} w-[90px]`}><input value={r.rate} inputMode="decimal" onChange={(e) => updateItem(r.id, 'rate', e.target.value.replace(/[^0-9.]/g, ''))} aria-label="रेट" className={cellIn} /></td>
+                      <td className={`${TD} w-[84px]`}><input value={r.disc} inputMode="decimal" onChange={(e) => updateItem(r.id, 'disc', e.target.value.replace(/[^0-9.]/g, ''))} aria-label="डिस्काउंट" className={cellIn} /></td>
+                      <td className={`${TD} w-[84px]`}>{money(taxable)}</td>
+                      <td className={`${TD} w-[70px]`}>
+                        <select value={r.gst} onChange={(e) => updateItem(r.id, 'gst', e.target.value)} aria-label="GST" className="w-full h-10 bg-transparent text-center outline-none focus:bg-green-50">{GST_SLABS.map((g) => <option key={g} value={g}>{g}%</option>)}</select>
+                      </td>
+                      <td className={`${TD} w-[70px]`}>{money(cgst)}</td>
+                      <td className={`${TD} w-[70px]`}>{money(sgst)}</td>
+                      <td className={`${TD} w-[70px]`}>{money(igst)}</td>
+                      <td className={`${TD} w-[70px]`}>{money(cess)}</td>
+                      <td className={`${TD} w-[84px] font-semibold`}>{money(net)}</td>
+                      <td className={`${TD} w-[64px]`}>
+                        <button type="button" aria-label="आइटम हटाएं" onClick={() => removeItem(r.id)} className="p-2 text-red-500 hover:bg-red-50 rounded focus-ring"><Trash2 size={16} /></button>
+                      </td>
+                    </tr>
+                  ))}
+                  {rows.length === 0 && (
+                    <tr><td colSpan={15} className="py-6 text-center text-[13px] text-slate-400 border border-slate-200">कोई आइटम नहीं जोड़ा गया</td></tr>
+                  )}
                 </tbody>
               </table>
             </div>
-            <button className="mt-2 mx-auto flex items-center gap-1 text-[11px] font-semibold text-green-700 border border-slate-200 rounded px-3 py-1 focus-ring">
-              <Plus size={12} /> आइटम जोड़ें
-            </button>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
-              <div>
-                <Field label="रिटर्न मात्रा (कुल उत्पाद मात्रा)"><Input defaultValue="1.00 PCS" /></Field>
-                <div className="mt-2">
-                  <Field label="रिटर्न का कारण" required>
-                    <Select defaultValue="खराब माल / Defective">
-                      <option>खराब माल / Defective</option><option>गलत उत्पाद</option><option>अन्य</option>
-                    </Select>
-                  </Field>
-                </div>
-              </div>
-              <Field label="टिप्पणी (Remarks)">
-                <Textarea rows={4} maxLength={250} value={retRemarks} onChange={(e) => setRetRemarks(e.target.value)} />
-                <p className="text-[10px] text-slate-500 text-right">{retRemarks.length}/250</p>
-              </Field>
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <button type="button" onClick={addItem} className="inline-flex items-center gap-1.5 h-10 px-4 rounded-lg border bg-white text-[13px] font-semibold hover:bg-green-50 focus-ring" style={{ borderColor: C.field, color: C.green }}>
+                <Plus size={16} /> आइटम जोड़ें
+              </button>
+              <button type="button" onClick={clearItems} disabled={rows.length === 0} className="inline-flex items-center gap-1.5 h-10 px-4 rounded-lg border bg-white text-[13px] font-semibold text-red-600 hover:bg-red-50 disabled:opacity-40 focus-ring" style={{ borderColor: '#fca5a5' }}>
+                <Trash2 size={15} /> सभी हटाएं
+              </button>
             </div>
 
-            <label className="mt-2 flex flex-col items-center justify-center gap-0.5 rounded-lg border-2 border-dashed border-green-500 py-2 text-center cursor-pointer">
-              <span className="flex items-center gap-1.5 text-[11px] font-semibold text-green-700"><Paperclip size={12} />+ Attachment जोड़ें</span>
-              <span className="text-[10px] text-slate-600">(फोटो / PDF / Document) अधिकतम साइज़: 10 MB</span>
-              <input type="file" className="hidden" />
+            {/* return summary tiles */}
+            <div ref={refs.summary} className="mt-5 rounded-xl border p-3 xl:p-4" style={{ borderColor: C.border, scrollMarginTop: 90 }}>
+              <h3 className="text-[14px] font-bold mb-3" style={{ color: C.text }}>रिटर्न समरी</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
+                {tiles.map(([k, v]) => (
+                  <div key={k} className="rounded-lg border bg-white px-2 py-3 text-center" style={{ borderColor: C.border }}>
+                    <p className="text-[11.5px] font-semibold mb-1.5" style={{ color: C.text }}>{k}</p>
+                    <p className="text-[19px] font-bold leading-none" style={{ color: C.text }}>{money(v)}</p>
+                  </div>
+                ))}
+                <div className="rounded-lg border px-2 py-3 text-center" style={{ background: '#eef7f0', borderColor: '#cfe8d6' }}>
+                  <p className="text-[11.5px] font-semibold mb-1.5" style={{ color: C.green }}>कुल रिटर्न राशि (₹)</p>
+                  <p className="text-[19px] font-bold leading-none" style={{ color: C.green }}>{money(totals.total)}</p>
+                </div>
+              </div>
+            </div>
+          </DCard>
+
+          {/* 4. attachment */}
+          <DCard title="4. अटैचमेंट" sub="(कोई दस्तावेज, फोटो)">
+            <label className="flex flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed text-center cursor-pointer py-7 hover:bg-green-50/40 focus-within:ring-2 focus-within:ring-green-600/40" style={{ borderColor: '#22a24a' }}>
+              <span className="flex items-center gap-2 text-[14px] font-semibold" style={{ color: C.green }}><Paperclip size={18} />{file ? 'फ़ाइल बदलें' : 'दस्तावेज जोड़ें'}</span>
+              {file ? (
+                <span className="max-w-full truncate px-4 text-[12.5px] font-medium" style={{ color: C.text }}>{file.name}</span>
+              ) : (
+                <>
+                  <span className="text-[12.5px]" style={{ color: C.text }}>(फोटो / PDF / Document)</span>
+                  <span className="text-[12px]" style={{ color: C.muted }}>अधिकतम साइज़: 10 MB</span>
+                </>
+              )}
+              <input type="file" accept="image/*,.pdf,.doc,.docx" className="sr-only" onChange={onFile} />
             </label>
-          </div>
-        </div>
-      </div>
+            {file && <button type="button" onClick={() => setFile(null)} className="mt-2 text-[12px] font-semibold text-red-600 focus-ring rounded">फ़ाइल हटाएं</button>}
+          </DCard>
 
-      {/* Bottom row: rules | data usage | quick actions | summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-3">
-        <div className={card}>
-          <h3 className={h3}>महत्वपूर्ण नियम (Rules)</h3>
-          <ul className="space-y-1.5 text-xs text-slate-700">
-            {rules.map((r) => (
-              <li key={r} className="flex items-start gap-1.5"><CheckCircle2 size={14} className="text-green-600 shrink-0 mt-0.5" />{r}</li>
-            ))}
-          </ul>
-        </div>
-
-        <div className={card}>
-          <h3 className={h3}>डेटा का उपयोग (Data Usage)</h3>
-          <ul className="list-disc pl-4 space-y-1.5 text-xs text-slate-700">
-            {dataUsage.map((d) => <li key={d}>{d}</li>)}
-          </ul>
-        </div>
-
-        <div className={card}>
-          <h3 className={h3}>त्वरित कार्य (Quick Actions)</h3>
-          <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
-            {[
-              { l: 'ड्राफ्ट सेव करें', i: FileText },
-              { l: 'PDF बनाएं', i: FileDown },
-              { l: 'प्रिंट करें', i: Printer },
-              { l: 'शेयर करें', i: Share2 },
-              { l: 'नया बिल बनाएं', i: FilePlus },
-            ].map((a) => (
-              <button key={a.l} className="flex flex-col items-center gap-1.5 py-2 px-0.5 rounded-lg border border-slate-200 shadow-sm hover:bg-slate-50 focus-ring">
-                <a.i size={22} className="text-navy-600" />
-                <span className="text-[9px] text-slate-700 text-center leading-tight">{a.l}</span>
-              </button>
-            ))}
+          {/* actions */}
+          <div className="grid grid-cols-[1fr_1.4fr] gap-4">
+            <button type="button" onClick={() => window.history.back()} className="h-12 rounded-lg border bg-white text-[14px] font-semibold hover:bg-slate-50 focus-ring" style={{ borderColor: C.field, color: C.label }}>रद्द करें</button>
+            <button type="button" onClick={save} className="h-12 rounded-lg text-[14px] font-semibold text-white hover:opacity-95 focus-ring" style={{ background: C.green }}>सेव करें</button>
           </div>
         </div>
 
-        <div className={card}>
-          <h3 className={h3}>सारांश (Summary)</h3>
-          <ul className="text-[11px] text-slate-700 space-y-0.5">
-            {summaryRows.map(([k, v]) => (
-              <li key={k} className="flex justify-between"><span>{k}</span><span>{v}</span></li>
-            ))}
-          </ul>
-        </div>
+        {/* ================= RIGHT: reference + notes ================= */}
+        <aside className="min-w-0 space-y-4 lg:sticky lg:top-4 self-start">
+          <section className="rounded-xl border bg-white p-4" style={{ borderColor: C.border }}>
+            <h3 className="text-[15px] font-bold mb-3" style={{ color: C.label }}>बिल संदर्भ सारांश</h3>
+            <dl className="space-y-2.5 text-[12px]" style={{ color: C.text }}>
+              {[
+                ['इनवॉइस नंबर :', invoiceNo || '—'],
+                ['इनवॉइस दिनांक :', showDate(invoiceDate) || '—'],
+                ['ग्राहक का नाम :', customer || '—'],
+                ['मूल बिल राशि (₹) :', money(ORIGINAL_BILL_AMOUNT)],
+                ['ओपन अमाउंट (₹) :', money(ORIGINAL_BILL_AMOUNT)],
+              ].map(([k, v]) => (
+                <div key={k} className="flex items-center justify-between gap-3"><dt>{k}</dt><dd className="font-semibold text-right truncate">{v}</dd></div>
+              ))}
+            </dl>
+          </section>
+
+          <section className="rounded-xl border bg-white p-4" style={{ borderColor: C.border }}>
+            <h3 className="text-[15px] font-bold mb-3" style={{ color: C.label }}>रिटर्न नोट्स</h3>
+            <ul className="space-y-3 text-[12px] leading-snug" style={{ color: C.text }}>
+              {RETURN_NOTES.map((n) => (
+                <li key={n} className="flex items-start gap-2"><CheckCircle2 size={15} className="text-green-600 shrink-0 mt-0.5" />{n}</li>
+              ))}
+            </ul>
+          </section>
+        </aside>
       </div>
 
-      <p className="text-center text-xs font-semibold text-green-800">Version 1.0 &nbsp;|&nbsp; © Udyog Sarthi</p>
-      </div>
-
-      {/* ===================== MOBILE (prototype: SCR-004A) ===================== */}
-      <SalesReturnMobile />
-    </Layout>
+      <p className="text-center text-xs font-semibold text-green-800 mt-2">Version 1.0 &nbsp;|&nbsp; © Udyog Sarthi</p>
+    </div>
   )
 }
+
+const RETURN_NOTES = [
+  'केवल उसी इनवॉइस का रिटर्न करें जो पहले इस सिस्टम में बनाया गया हो।',
+  'रिटर्न की गई मात्रा स्टॉक में वापस जुड़ जाएगी।',
+  'क्रेडिट नोट ग्राहक को दिया जाएगा और यह GSTR-1 में रिपोर्ट होगा।',
+]
 
 /* =====================================================================
    MOBILE VIEW (phone / small tablet, < lg) — prototype SCR-004A
@@ -326,8 +433,9 @@ export default function SalesBill() {
    ===================================================================== */
 const C = { green: '#14612e', label: '#1e3a8a', text: '#1f2937', muted: '#6b7280', border: '#e9ecf0', field: '#d9dde3' }
 const cl = (min, vw, max) => `clamp(${min}px, ${vw}vw, ${max}px)`
-const GST_RATE = 18 // return amounts are GST-inclusive
 const ORIGINAL_BILL_AMOUNT = 1892
+const UNITS = ['PCS', 'KG', 'GM', 'LTR', 'BOX', 'MTR']
+const GST_SLABS = ['0', '5', '12', '18', '28']
 const REASONS = ['माल वापस आया / Defective', 'गलत प्रोडक्ट / Wrong item', 'ज़्यादा मात्रा / Excess quantity', 'अन्य / Other']
 const STEPS = [
   { label: 'रिटर्न जानकारी', target: 'info' },
@@ -342,6 +450,7 @@ const num = (v) => {
   return Number.isFinite(n) && n > 0 ? n : 0
 }
 let rowId = 1
+const newRow = (o = {}) => ({ id: rowId++, name: '', hsn: '', unit: 'PCS', qty: '1.00', rate: '', disc: '0', gst: '18', ...o })
 
 /* label + control wrapper */
 function MField({ label, required, children }) {
@@ -356,11 +465,11 @@ function MField({ label, required, children }) {
 }
 
 /* bordered field shell (height scales with the screen) */
-function Box({ children, readOnly, className = '' }) {
+function Box({ children, readOnly, error, className = '' }) {
   return (
     <div
       className={`relative flex items-center w-full rounded-lg border ${readOnly ? 'bg-slate-100' : 'bg-white focus-within:border-green-600'} ${className}`}
-      style={{ borderColor: C.field, height: cl(40, 11.5, 50) }}
+      style={{ borderColor: error ? '#dc2626' : C.field, height: cl(40, 11.5, 50) }}
     >
       {children}
     </div>
@@ -392,54 +501,32 @@ function SectionTitle({ children }) {
   return <h2 className="font-bold mb-3" style={{ color: C.label, fontSize: cl(14, 4.3, 19) }}>{children}</h2>
 }
 
-function SalesReturnMobile() {
-  const { pushToast } = useApp()
+function SalesReturnMobile({ f }) {
+  const {
+    pushToast, invoiceNo, setInvoiceNo, invoiceDate, setInvoiceDate, customer, setCustomer,
+    returnNo, setReturnNo, returnDate, setReturnDate, reason, setReason, otherReason, setOtherReason,
+    items, updateItem, removeItem, addItem, file, setFile, totals, errors, clearErr, save,
+  } = f
+  const { total, taxable, cgst, sgst } = totals
+  const halfTax = cgst // CGST == SGST (intra-state)
   const scrollRef = useRef(null)
   const sections = { info: useRef(null), items: useRef(null), summary: useRef(null) }
-
   const [step, setStep] = useState(0)
   const [menuOpen, setMenuOpen] = useState(false)
-  const [invoiceNo, setInvoiceNo] = useState('INV-1689')
-  const [invoiceDate, setInvoiceDate] = useState('2025-05-17')
-  const [customer, setCustomer] = useState('Shiv Traders')
-  const [returnNo, setReturnNo] = useState('SRN-0042')
-  const [returnDate, setReturnDate] = useState('2025-05-20')
-  const [reason, setReason] = useState(REASONS[0])
-  const [otherReason, setOtherReason] = useState('गुणवत्ता सही नहीं थी ।')
-  const [items, setItems] = useState([{ id: rowId++, name: 'मैदा 1kg', qty: '1.00', rate: '110.00' }])
-  const [file, setFile] = useState(null)
 
   const goTo = (i) => {
     setStep(i)
     sections[STEPS[i].target].current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
-  const updateItem = (id, key, value) => setItems((arr) => arr.map((r) => (r.id === id ? { ...r, [key]: value } : r)))
-  const removeItem = (id) => setItems((arr) => arr.filter((r) => r.id !== id))
-  const addItem = () => setItems((arr) => [...arr, { id: rowId++, name: '', qty: '1.00', rate: '' }])
-
-  // totals (rate is GST-inclusive: taxable = total / 1.18, tax split equally into CGST + SGST)
-  const total = items.reduce((sum, r) => sum + num(r.qty) * num(r.rate), 0)
-  const taxable = total / (1 + GST_RATE / 100)
-  const halfTax = (total - taxable) / 2
-
   const onFile = (e) => {
-    const f = e.target.files?.[0]
-    if (!f) return
-    if (f.size > 10 * 1024 * 1024) {
+    const picked = e.target.files?.[0]
+    if (!picked) return
+    if (picked.size > 10 * 1024 * 1024) {
       e.target.value = ''
       return pushToast('फ़ाइल का साइज़ 10 MB से ज़्यादा नहीं होना चाहिए', 'warn')
     }
-    setFile(f)
-  }
-
-  const save = () => {
-    if (!invoiceNo.trim()) return pushToast('इनवॉइस नंबर दर्ज करें', 'warn')
-    if (!returnNo.trim()) return pushToast('रिटर्न / क्रेडिट नोट नंबर दर्ज करें', 'warn')
-    if (!reason) return pushToast('रिटर्न का कारण चुनें', 'warn')
-    if (total <= 0) return pushToast('कम से कम एक आइटम जोड़ें', 'warn')
-    if (total > ORIGINAL_BILL_AMOUNT) return pushToast('रिटर्न राशि मूल बिल राशि से ज़्यादा नहीं हो सकती', 'warn')
-    pushToast('रिटर्न / क्रेडिट नोट सफलतापूर्वक सेव हो गया')
+    setFile(picked)
   }
 
   return (
@@ -500,8 +587,8 @@ function SalesReturnMobile() {
           <SectionTitle>1. बिल संदर्भ (Original Invoice Reference)</SectionTitle>
           <div className="grid grid-cols-2" style={{ gap: cl(8, 3, 16) }}>
             <MField label="इनवॉइस नंबर" required>
-              <Box>
-                <input value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} className={inputCls} style={inputStyle} aria-label="इनवॉइस नंबर" />
+              <Box error={errors.invoiceNo}>
+                <input value={invoiceNo} onChange={(e) => { setInvoiceNo(e.target.value); clearErr('invoiceNo') }} className={inputCls} style={inputStyle} aria-label="इनवॉइस नंबर" />
                 <button type="button" aria-label="इनवॉइस खोजें" onClick={() => pushToast(`${invoiceNo || 'इनवॉइस'} खोजा जा रहा है`, 'info')} className="absolute right-0 h-full px-3 flex items-center focus-ring rounded-r-lg">
                   <Search style={{ ...iconStyle, color: C.label }} />
                 </button>
@@ -529,8 +616,8 @@ function SalesReturnMobile() {
           <SectionTitle>2. रिटर्न जानकारी</SectionTitle>
           <div className="grid grid-cols-2" style={{ gap: cl(8, 3, 16) }}>
             <MField label="रिटर्न /क्रेडिट नोट नंबर" required>
-              <Box>
-                <input value={returnNo} onChange={(e) => setReturnNo(e.target.value)} className={inputCls} style={inputStyle} aria-label="रिटर्न / क्रेडिट नोट नंबर" />
+              <Box error={errors.returnNo}>
+                <input value={returnNo} onChange={(e) => { setReturnNo(e.target.value); clearErr('returnNo') }} className={inputCls} style={inputStyle} aria-label="रिटर्न / क्रेडिट नोट नंबर" />
                 <Settings className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style={iconStyle} />
               </Box>
             </MField>
