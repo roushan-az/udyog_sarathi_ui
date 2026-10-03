@@ -1,9 +1,10 @@
 import React, { useMemo, useRef, useState } from 'react'
 import {
   Send, Printer, FileText, Save, Paperclip, Settings, Calendar, User, Search,
-  ChevronDown, Trash2, Plus,
+  ChevronDown, Trash2, Plus, ArrowLeft, MoreVertical,
 } from 'lucide-react'
 import Layout from '../components/layout/Layout'
+import MobileHeader from '../components/layout/MobileHeader'
 import PageHeader from '../components/common/PageHeader'
 import Button from '../components/common/Button'
 import { useApp } from '../context/AppContext'
@@ -138,6 +139,37 @@ const sub = 'block font-normal text-[10px] text-slate-500'
 const td = 'border border-slate-200'
 
 /* ------------------------------------------------------------------ */
+/* mobile-only helpers (phone, < lg)                                   */
+/* ------------------------------------------------------------------ */
+const M_STEPS = [
+  { label: 'रिटर्न जानकारी', id: 'm-sec-return' },
+  { label: 'आइटम विवरण', id: 'm-sec-items' },
+  { label: 'सारांश & सेव', id: 'm-sec-gst' },
+]
+const M_REASONS = ['सामान दोषपूर्ण / Defective', 'गलत सामान', 'अधिक मात्रा में आया', 'अन्य']
+const M_CONTROL =
+  'w-full h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-800 ' +
+  'focus:outline-none focus:border-brandGreen-500 focus:ring-1 focus:ring-brandGreen-500'
+const M_LABEL = 'block text-xs text-slate-600 mb-1'
+const MCard = ({ id, title, children }) => (
+  <section id={id} className="scroll-mt-2 bg-white rounded-xl border border-slate-200 shadow-sm p-3.5">
+    <h2 className="text-sm font-bold text-navy-800 mb-3">{title}</h2>
+    {children}
+  </section>
+)
+const MField = ({ label, required, children }) => (
+  <label className="block">
+    <span className={M_LABEL}>{label}{required && <span className="text-red-500"> *</span>}</span>
+    {children}
+  </label>
+)
+const MIcon = ({ icon: Icon }) => (
+  <Icon size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-navy-800 pointer-events-none" />
+)
+const mCellInput = 'w-full bg-transparent text-center text-[11px] text-slate-800 outline-none py-1.5'
+const mTh = 'border border-slate-200 font-semibold text-slate-700 text-center text-[10px] py-1.5 px-1 leading-tight'
+
+/* ------------------------------------------------------------------ */
 /* page                                                                */
 /* ------------------------------------------------------------------ */
 export default function PurchaseBillReturn() {
@@ -216,6 +248,13 @@ export default function PurchaseBillReturn() {
     document.getElementById(STEPS[i].target)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }
 
+  // mobile only
+  const [mReason, setMReason] = useState(M_REASONS[0])
+  const goToMStep = (i) => {
+    setStep(i + 1)
+    document.getElementById(M_STEPS[i].id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
   const saveReturn = () => {
     if (!origNo.trim() || !supplier.trim()) return pushToast('मूल बिल की जानकारी भरें')
     if (!debitNo.trim()) return pushToast('डेबिट नोट नंबर भरें')
@@ -225,6 +264,8 @@ export default function PurchaseBillReturn() {
 
   return (
     <Layout title="Purchase Return" subtitle="खरीद बिल रिटर्न">
+      {/* ===================== DESKTOP (unchanged) ===================== */}
+      <div className="hidden lg:block">
       <PageHeader
         code={SCREEN_CODE}
         title="खरीद बिल रिटर्न (Purchase Bill Return)"
@@ -238,7 +279,7 @@ export default function PurchaseBillReturn() {
           </>
         }
       />
-
+      </div>
       {/* ---------------- stepper ---------------- */}
       <div className="flex items-center gap-3 overflow-x-auto scroll-x mb-4 pb-1">
         {STEPS.map((s, i) => {
@@ -522,6 +563,236 @@ export default function PurchaseBillReturn() {
             <Save size={15} /> सेव करें
           </button>
         </div>
+      </div>
+
+      {/* ===================== MOBILE (prototype: SCR-005A) ===================== */}
+      <div className="lg:hidden fixed inset-x-0 top-0 bottom-[56px] z-30 mx-auto w-full max-w-[900px] bg-white flex flex-col overflow-hidden">
+        <MobileHeader />
+
+        <main className="flex-1 overflow-y-auto px-[clamp(12px,4vw,28px)] pt-1 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {/* title row */}
+          <div className="flex items-center gap-3 mb-3">
+            <button type="button" aria-label="Back" className="p-1 -ml-1 text-navy-800 focus-ring rounded">
+              <ArrowLeft size={22} />
+            </button>
+            <div className="flex-1 text-center">
+              <h1 className="text-base font-bold text-navy-800 leading-tight">खरीद रिटर्न / डेबिट नोट</h1>
+              <p className="text-xs font-semibold text-navy-800">(SCR-005A)</p>
+            </div>
+            <button type="button" aria-label="More" className="p-1 -mr-1 text-navy-800 focus-ring rounded">
+              <MoreVertical size={20} />
+            </button>
+          </div>
+
+          {/* 3-step stepper */}
+          <div className="flex items-start mb-4 px-1">
+            {M_STEPS.map((s, i) => (
+              <React.Fragment key={s.id}>
+                <button type="button" onClick={() => goToMStep(i)} className="flex flex-col items-center gap-1 w-16 shrink-0 focus-ring rounded">
+                  <span className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold border ${
+                    step === i + 1 ? 'bg-brandGreen-700 border-brandGreen-700 text-white' : 'bg-white border-slate-400 text-slate-700'
+                  }`}>{i + 1}</span>
+                  <span className={`text-[10px] font-semibold text-center leading-tight ${step === i + 1 ? 'text-brandGreen-700' : 'text-slate-700'}`}>{s.label}</span>
+                </button>
+                {i < M_STEPS.length - 1 && <span className="flex-1 h-px bg-slate-300 mt-4" />}
+              </React.Fragment>
+            ))}
+          </div>
+
+          <div className="space-y-3">
+            {/* 1. original bill */}
+            <MCard id="m-sec-return" title="1. मूल बिल जानकारी (Original Bill Reference)">
+              <div className="grid grid-cols-2 gap-3">
+                <MField label="बिल नंबर" required>
+                  <div className="relative">
+                    <input
+                      value={origNo}
+                      onChange={(e) => setOrigNo(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && lookupBill()}
+                      className={`${M_CONTROL} pr-10`}
+                    />
+                    <button type="button" onClick={lookupBill} aria-label="मूल बिल खोजें" className="absolute right-1 top-1/2 -translate-y-1/2 p-2 text-navy-800 focus-ring rounded">
+                      <Search size={16} />
+                    </button>
+                  </div>
+                </MField>
+                <MField label="बिल दिनांक">
+                  <div className="relative">
+                    <input
+                      type="date"
+                      value={origDate}
+                      onChange={(e) => setOrigDate(e.target.value)}
+                      className={`${M_CONTROL} pr-10 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-10 [&::-webkit-calendar-picker-indicator]:h-full`}
+                    />
+                    <MIcon icon={Calendar} />
+                  </div>
+                </MField>
+                <MField label="सप्लायर का नाम" required>
+                  <div className="relative">
+                    <input value={supplier} onChange={(e) => setSupplier(e.target.value)} className={`${M_CONTROL} pr-10`} />
+                    <MIcon icon={User} />
+                  </div>
+                </MField>
+                <MField label="मूल बिल राशि (₹)">
+                  <input readOnly value={fmt(origAmount)} className={`${M_CONTROL} !bg-slate-100 text-center`} />
+                </MField>
+              </div>
+            </MCard>
+
+            {/* 2. return info */}
+            <MCard title="2. रिटर्न जानकारी">
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <MField label="डेबिट नोट नंबर" required>
+                  <div className="relative">
+                    <input value={debitNo} onChange={(e) => setDebitNo(e.target.value)} className={`${M_CONTROL} pr-10`} />
+                    <MIcon icon={Settings} />
+                  </div>
+                </MField>
+                <MField label="रिटर्न दिनांक" required>
+                  <div className="relative">
+                    <input
+                      type="date"
+                      value={returnDate}
+                      onChange={(e) => setReturnDate(e.target.value)}
+                      className={`${M_CONTROL} pr-10 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-10 [&::-webkit-calendar-picker-indicator]:h-full`}
+                    />
+                    <MIcon icon={Calendar} />
+                  </div>
+                </MField>
+              </div>
+              <div className="mb-3">
+                <MField label="रिटर्न का कारण" required>
+                  <div className="relative">
+                    <select value={mReason} onChange={(e) => setMReason(e.target.value)} className={`${M_CONTROL} appearance-none pr-10`}>
+                      {M_REASONS.map((r) => <option key={r}>{r}</option>)}
+                    </select>
+                    <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 pointer-events-none" />
+                  </div>
+                </MField>
+              </div>
+              <MField label="अन्य कारण">
+                <textarea
+                  rows={3}
+                  value={reason}
+                  maxLength={250}
+                  onChange={(e) => setReason(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:border-brandGreen-500 focus:ring-1 focus:ring-brandGreen-500 resize-none"
+                />
+                <span className="block text-[10px] text-slate-500 text-right">{reason.length}/250</span>
+              </MField>
+            </MCard>
+
+            {/* 3. items */}
+            <MCard id="m-sec-items" title="3. आइटम विवरण (रिटर्न के लिए आइटम)">
+              <div className="rounded-lg border border-slate-200 overflow-x-auto">
+                <table className="w-full min-w-[470px] border-collapse text-[11px]">
+                  <thead>
+                    <tr className="bg-slate-50">
+                      <th className={`${mTh} w-6`}>#</th>
+                      <th className={mTh}>प्रोडक्ट नाम</th>
+                      <th className={`${mTh} w-14`}>HSN</th>
+                      <th className={`${mTh} w-14`}>Qty<span className="block font-normal text-slate-500">(रिटर्न)</span></th>
+                      <th className={`${mTh} w-[4.25rem]`}>Unit</th>
+                      <th className={`${mTh} w-16`}>Rate (₹)</th>
+                      <th className={`${mTh} w-[4.5rem]`}>Amount (₹)</th>
+                      <th className={`${mTh} w-8`} />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {calc.rows.map((r, i) => (
+                      <tr key={r.id} className="text-center text-slate-800">
+                        <td className={td}>{i + 1}</td>
+                        <td className={`${td} px-0.5`}>
+                          <input className={`${mCellInput} text-left px-1`} value={r.name} placeholder="प्रोडक्ट नाम" onChange={(e) => updateItem(r.id, 'name', e.target.value)} />
+                        </td>
+                        <td className={`${td} px-0.5`}>
+                          <input className={mCellInput} value={r.hsn} onChange={(e) => updateItem(r.id, 'hsn', e.target.value)} />
+                        </td>
+                        <td className={`${td} px-0.5`}>
+                          <input className={mCellInput} value={r.qty} inputMode="decimal" onChange={(e) => updateItem(r.id, 'qty', e.target.value)} />
+                        </td>
+                        <td className={`${td} px-1`}>
+                          <select value={r.unit} onChange={(e) => updateItem(r.id, 'unit', e.target.value)} className="w-full h-6 rounded border border-slate-200 bg-white text-[10px] font-semibold text-slate-700 outline-none">
+                            {UNITS.map((u) => <option key={u}>{u}</option>)}
+                          </select>
+                        </td>
+                        <td className={`${td} px-0.5`}>
+                          <input className={mCellInput} value={r.rate} inputMode="decimal" onChange={(e) => updateItem(r.id, 'rate', e.target.value)} />
+                        </td>
+                        <td className={`${td} font-medium`}>{fmt(r.taxable)}</td>
+                        <td className={td}>
+                          <button type="button" onClick={() => removeItem(r.id)} aria-label="आइटम हटाएँ" className="p-1 focus-ring rounded">
+                            <Trash2 size={14} className="text-red-500" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {!calc.rows.length && (
+                      <tr>
+                        <td colSpan={8} className="py-5 text-center text-[11px] text-slate-500">कोई आइटम नहीं है — “आइटम जोड़ें” दबाएँ।</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <button type="button" onClick={addItem} className="mt-3 mx-auto flex items-center gap-1.5 h-10 px-6 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-navy-800 focus-ring">
+                <Plus size={14} /> आइटम जोड़ें
+              </button>
+
+              <div className="mt-3 flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-semibold text-navy-800">
+                <span>कुल आइटम: {items.length}</span>
+                <span>कुल रिटर्न टैक्सेबल (₹): {fmt(calc.taxable)}</span>
+              </div>
+            </MCard>
+
+            {/* 4. tax */}
+            <MCard id="m-sec-gst" title="4. टैक्स विवरण (रिटर्न के लिए)">
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <MField label="GST दर (%)" required>
+                  <div className="relative">
+                    <select value={gstRate} onChange={(e) => setGstRate(e.target.value)} className={`${M_CONTROL} appearance-none pr-10`}>
+                      {['0', '5', '12', '18', '28'].map((r) => <option key={r} value={r}>{r}%</option>)}
+                    </select>
+                    <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-600 pointer-events-none" />
+                  </div>
+                </MField>
+                <MField label="रिटर्न टैक्सेबल (₹)">
+                  <input readOnly value={fmt(calc.taxable)} className={`${M_CONTROL} !bg-slate-100 text-right`} />
+                </MField>
+              </div>
+              <div className="grid grid-cols-4 gap-2">
+                {[['CGST (₹)', calc.cgst], ['SGST (₹)', calc.sgst], ['IGST (₹)', calc.igst], ['Cess (₹)', calc.cess]].map(([l, v]) => (
+                  <MField key={l} label={l}>
+                    <input readOnly value={fmt(v)} className={`${M_CONTROL} !h-10 !px-2 text-right text-xs`} />
+                  </MField>
+                ))}
+              </div>
+              <div className="mt-3 rounded-lg border border-[#cfe6d4] bg-[#eef6ef] px-3 py-3">
+                <p className="text-xs font-semibold text-brandGreen-700">कुल रिटर्न राशि (₹)</p>
+                <p className="text-2xl font-bold text-brandGreen-700 leading-tight mt-1">{fmt(calc.total)}</p>
+                <p className="text-[10px] font-semibold text-brandGreen-700 text-right mt-1">({rupeesInHindi(calc.total)})</p>
+              </div>
+            </MCard>
+
+            {/* 5. attachment */}
+            <MCard title="5. अटैचमेंट (कोई दस्तावेज़, फोटो)">
+              <label className="flex flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-brandGreen-600 bg-[#f4faf5] py-5 text-center cursor-pointer">
+                <Paperclip size={18} className="text-navy-800" />
+                <span className="text-sm font-bold text-navy-800 px-2 break-all">{fileName || 'दस्तावेज़ जोड़ें'}</span>
+                <span className="text-[11px] font-semibold text-navy-800">(फोटो / PDF / Document)</span>
+                <span className="text-[11px] text-slate-600">अधिकतम साइज़: 10 MB</span>
+                <input type="file" className="hidden" onChange={(e) => setFileName(e.target.files?.[0]?.name || '')} />
+              </label>
+            </MCard>
+
+            {/* actions */}
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              <button type="button" className="h-11 rounded-lg border border-slate-300 bg-white text-sm font-semibold text-navy-800 focus-ring">रद्द करें</button>
+              <button type="button" onClick={saveReturn} className="h-11 rounded-lg bg-brandGreen-700 text-sm font-semibold text-white focus-ring">सेव करें</button>
+            </div>
+          </div>
+        </main>
       </div>
     </Layout>
   )

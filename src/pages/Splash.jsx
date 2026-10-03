@@ -4,6 +4,7 @@ import Logo from '../components/common/Logo'
 import peopleTalking from '../assets/illus-people-talking.png'
 import growthIcon from '../assets/illus-growth-icon.png'
 import mountainClimber from '../assets/illus-mountain-climber.png'
+import mountainMobile from '../assets/illus-mountain-mobile.png'
 
 const SLIDE_COUNT = 3
 // width / height of the desktop card for each slide (from the prototype images)
@@ -53,6 +54,23 @@ const WAVE_BG_LEFT = `url("data:image/svg+xml;utf8,${encodeURIComponent(
   </svg>`
 )}")`
 
+// Mobile slide 1: soft pale-green hills along the bottom of the phone screen (prototype Slide-1).
+// Drawn in a fixed 400 x 170 box that is pinned to the bottom, so the hills keep their shape on any phone height.
+const WAVE_BG_MOBILE = `url("data:image/svg+xml;utf8,${encodeURIComponent(
+  `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 170' preserveAspectRatio='none'>
+    <defs>
+      <linearGradient id='m1' x1='0' y1='0' x2='0' y2='1'>
+        <stop offset='0' stop-color='#f6faf7'/><stop offset='1' stop-color='#ecf5ef'/>
+      </linearGradient>
+      <linearGradient id='m2' x1='0' y1='0' x2='0' y2='1'>
+        <stop offset='0' stop-color='#eef6f1'/><stop offset='1' stop-color='#e2efe7'/>
+      </linearGradient>
+    </defs>
+    <path d='M0 62 C60 40 130 52 200 92 C260 126 330 128 400 96 L400 170 L0 170 Z' fill='url(#m1)'/>
+    <path d='M0 120 C70 100 150 132 240 140 C310 146 360 136 400 122 L400 170 L0 170 Z' fill='url(#m2)'/>
+  </svg>`
+)}")`
+
 // Prototype loader ring: pale-grey track, green arc (top -> right) then blue arc (lower right).
 const ringMask = (thick) => `radial-gradient(farthest-side, transparent calc(100% - ${thick}), #000 calc(100% - ${thick}))`
 const ringStyle = (size, thick) => ({
@@ -61,41 +79,42 @@ const ringStyle = (size, thick) => ({
   WebkitMask: ringMask(thick), mask: ringMask(thick),
 })
 
-const Divider = ({ className = '', align = 'center' }) => (
-  <div className={`flex items-center gap-2 ${align === 'left' ? 'justify-start' : 'justify-center'} ${className}`}>
-    <span className="h-px w-16 bg-navy-700/60" />
-    <span className="w-2 h-2 rounded-full bg-brandOrange-500 shrink-0" />
-    <span className="h-px w-16 bg-brandGreen-700/60" />
-  </div>
-)
-
-const Spinner = ({ big }) => (
-  <div className="flex flex-col items-center gap-1.5">
-    <span className={`${big ? 'w-11 h-11 border-[5px]' : 'w-9 h-9 border-4'} rounded-full border-slate-200 border-t-brandGreen-600 border-r-brandGreen-600 animate-spin`} />
-    <p className="text-sm font-semibold text-navy-800">Loading...</p>
-    <p className="text-xs font-medium text-slate-700">Version 1.0</p>
-  </div>
-)
-
-function SlideDots({ index }) {
+// Slide dots. Desktop keeps the original (rem based) look; mobile scales with the phone width (cqw)
+// and can use white inactive dots so they stay visible over the mountain image on slide 3.
+function SlideDots({ index, mobile = false, light = false, size = '4.2cqw', gap = '6.8cqw' }) {
+  if (!mobile) {
+    return (
+      <div className="flex items-center gap-2">
+        {Array.from({ length: SLIDE_COUNT }).map((_, i) => (
+          <span key={i} className={`h-2 rounded-full transition-all ${i === index ? 'w-2 bg-brandGreen-600' : 'w-2 bg-slate-300'}`} />
+        ))}
+      </div>
+    )
+  }
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center justify-center" style={{ gap }}>
       {Array.from({ length: SLIDE_COUNT }).map((_, i) => (
-        <span key={i} className={`h-2 rounded-full transition-all ${i === index ? 'w-2 bg-brandGreen-600' : 'w-2 bg-slate-300'}`} />
+        <span
+          key={i}
+          className="rounded-full transition-all"
+          style={{
+            width: size,
+            height: size,
+            background: i === index ? '#1e8a2f' : light ? '#ffffff' : '#bfc2c5',
+          }}
+        />
       ))}
     </div>
   )
 }
 
-const Heading2 = ({ cls = '' }) => (
-  <h2 className={`font-extrabold text-navy-700 leading-snug ${cls}`}>
-    हम आपके <span className="text-brandGreen-700">व्यवसाय</span> के साथी हैं
-  </h2>
-)
-const Heading3 = ({ cls = '' }) => (
-  <h2 className={`font-extrabold text-navy-700 leading-snug ${cls}`}>
-    हर बड़ा व्यवसाय<br />एक छोटे कदम से<br /><span className="text-brandGreen-700">शुरू होता है ।</span>
-  </h2>
+// Thin line - orange dot - thin line (mobile). Width is a % of phone width.
+const MobileDivider = ({ width = '84cqw', lineOpacity = 0.5, margin, dot = '2.2cqw' }) => (
+  <div className="flex items-center justify-center mx-auto" style={{ width, gap: '1.6cqw', margin }}>
+    <span className="flex-1 bg-navy-700" style={{ height: '1px', opacity: lineOpacity }} />
+    <span className="rounded-full bg-brandOrange-500 shrink-0" style={{ width: dot, height: dot }} />
+    <span className="flex-1 bg-brandGreen-700" style={{ height: '1px', opacity: lineOpacity }} />
+  </div>
 )
 
 // SCR-001: 3 slides × 2 sec, then -> SCR-002 (Company Setup).
@@ -114,37 +133,105 @@ export default function Splash() {
 
   return (
     <div className="min-h-screen bg-white flex items-center justify-center">
-      {/* ================= MOBILE (portrait) ================= */}
-      <div className="lg:hidden relative w-full max-w-sm min-h-screen sm:min-h-[640px] sm:my-6 sm:rounded-[2rem] sm:border sm:border-slate-200 sm:shadow-card overflow-hidden flex flex-col items-center px-6 pt-16 pb-8 bg-white">
-        <div className="flex-1 w-full flex flex-col items-center justify-center text-center">
-          {index === 0 && (
-            <>
-              <Logo variant="stacked" size="lg" />
-              <div className="mt-10"><Spinner big /></div>
-            </>
-          )}
-          {index === 1 && (
-            <>
-              <img src={peopleTalking} alt="" className="w-64 h-auto mix-blend-multiply" />
-              <Heading2 cls="text-2xl mt-6" />
-              <Divider className="my-3" />
-              <p className="text-sm font-medium text-slate-800 leading-7 max-w-[17rem]">
-                व्यवसाय को समझने, सीखने, सुझाव पाने, रिपोर्ट देखने और अपने व्यवसाय को बेहतर जानने में हम आपका साथ देते हैं।
+      {/* ================= MOBILE (portrait) =================
+          Rebuilt to match the prototype phone screens exactly. The screen fills the phone
+          (full height, max 430px wide; on small tablets it sits centred inside a rounded frame).
+          Every size is in cqw (1% of the screen width) and vertical anchors are % of the screen height,
+          so text, logo, spinner, illustrations, hills and dots keep the prototype's proportions on every phone. */}
+      <div
+        className="lg:hidden relative w-full max-w-[430px] h-screen h-[100dvh] sm:h-[min(880px,calc(100dvh-3rem))] sm:my-6 sm:rounded-[2rem] sm:border sm:border-slate-200 sm:shadow-card overflow-hidden bg-white"
+        style={{ containerType: 'inline-size' }}
+      >
+        {/* ---------- Slide 1 : logo + loader ---------- */}
+        {index === 0 && (
+          <>
+            {/* pale-green hills at the bottom */}
+            <div
+              className="absolute left-0 bottom-0 w-full pointer-events-none"
+              style={{ height: '78cqw', backgroundImage: WAVE_BG_MOBILE, backgroundSize: '100% 100%' }}
+            />
+            <div className="absolute" style={{ left: '0', top: '14%', width: '100cqw' }}>
+              <Logo variant="splash" size="xl" className="!w-full" />
+            </div>
+            <div className="absolute w-full flex flex-col items-center" style={{ top: '58%', gap: '2.8cqw' }}>
+              <span className="animate-spin block" style={ringStyle('14cqw', '1.7cqw')} />
+              <p className="font-bold text-navy-800 text-center" style={{ fontSize: '5.7cqw', lineHeight: '7.6cqw' }}>Loading...</p>
+            </div>
+            <p
+              className="absolute w-full text-center font-bold text-navy-800"
+              style={{ bottom: '3.4%', fontSize: '5.2cqw', lineHeight: '6.8cqw' }}
+            >
+              Version 1.0
+            </p>
+          </>
+        )}
+
+        {/* ---------- Slide 2 : people talking ---------- */}
+        {index === 1 && (
+          <>
+            <img
+              src={peopleTalking}
+              alt=""
+              className="absolute mix-blend-multiply h-auto"
+              style={{ left: '50%', transform: 'translateX(-50%)', top: '7%', width: '94cqw' }}
+            />
+            <div className="absolute w-full text-center" style={{ top: '45.5%' }}>
+              <h2 className="font-extrabold text-navy-700 whitespace-nowrap" style={{ fontSize: '7.2cqw', lineHeight: '9.4cqw' }}>
+                हम आपके <span className="text-brandGreen-700">व्यवसाय</span> के साथी हैं
+              </h2>
+              <MobileDivider width="86cqw" lineOpacity={0.55} margin="5cqw auto 4.6cqw" />
+              <p className="font-medium text-slate-800 whitespace-nowrap" style={{ fontSize: '5.7cqw', lineHeight: '10.4cqw' }}>
+                व्यवसाय को समझने, सीखने, सुझाव पाने,<br />
+                रिपोर्ट देखने और अपने व्यवसाय को<br />
+                बेहतर जानने में हम आपका साथ देते हैं।
               </p>
-            </>
-          )}
-          {index === 2 && (
-            <>
-              <img src={growthIcon} alt="" className="w-20 h-auto" />
-              <Heading3 cls="text-2xl mt-3" />
-              <Divider className="my-3" />
-              <p className="text-sm font-medium text-slate-800 leading-7">सीखते रहिए, बढ़ते रहिए,<br />सफल होते रहिए ।</p>
-              <img src={mountainClimber} alt="" className="w-full h-auto mt-4" />
-            </>
-          )}
-        </div>
-        <div className="mt-4"><SlideDots index={index} /></div>
-        {index !== 0 && <p className="mt-3 text-[11px] font-medium text-slate-500">Version 1.0</p>}
+            </div>
+          </>
+        )}
+
+        {/* ---------- Slide 3 : small steps / mountain ---------- */}
+        {index === 2 && (
+          <>
+            <img
+              src={growthIcon}
+              alt=""
+              className="absolute h-auto"
+              style={{ left: '50%', transform: 'translate(-50%,-50%)', top: '15.5%', width: '40cqw' }}
+            />
+            <div className="absolute w-full text-center" style={{ top: 'calc(26% - 5.7cqw)' }}>
+              <h2 className="font-bold text-navy-700 whitespace-nowrap" style={{ fontSize: '9.2cqw', lineHeight: '11.4cqw' }}>
+                हर बड़ा व्यवसाय<br />एक छोटे कदम से<br /><span className="text-[#1e8a2f]">शुरू होता है ।</span>
+              </h2>
+              <MobileDivider width="44cqw" lineOpacity={0.45} dot="3.2cqw" margin="3cqw auto 3.4cqw" />
+              <p className="font-medium text-navy-700 whitespace-nowrap" style={{ fontSize: '6.3cqw', lineHeight: '9cqw' }}>
+                सीखते रहिए, बढ़ते रहिए,<br />सफल होते रहिए ।
+              </p>
+            </div>
+            {/* full mobile scene (climber, hills, forest and winding path) - pinned to the bottom, full width */}
+            <img
+              src={mountainMobile}
+              alt=""
+              className="absolute left-0 bottom-0 w-full h-auto mix-blend-multiply pointer-events-none select-none"
+              style={{
+                WebkitMaskImage: 'linear-gradient(to bottom, transparent, #000 12%)',
+                maskImage: 'linear-gradient(to bottom, transparent, #000 12%)',
+              }}
+            />
+          </>
+        )}
+
+        {/* dots: slides 2 & 3 only (prototype slide 1 shows "Version 1.0" instead) */}
+        {index !== 0 && (
+          <div className="absolute w-full z-10" style={{ bottom: '3.6%' }}>
+            <SlideDots
+              index={index}
+              mobile
+              light={index === 2}
+              size={index === 2 ? '4.8cqw' : '4.2cqw'}
+              gap={index === 2 ? '4.4cqw' : '6.8cqw'}
+            />
+          </div>
+        )}
       </div>
 
       {/* ================= DESKTOP (landscape) — wide CARD like the prototype =================

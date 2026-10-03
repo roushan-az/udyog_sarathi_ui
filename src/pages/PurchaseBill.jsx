@@ -1,9 +1,10 @@
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Send, Printer, FileText, Save, Paperclip, Settings, Calendar, User, Phone,
-  ChevronDown, Trash2, Plus, Info,
+  ChevronDown, Trash2, Plus, Info, X, CheckCircle2,
 } from 'lucide-react'
 import Layout from '../components/layout/Layout'
+import MobileHeader from '../components/layout/MobileHeader'
 import PageHeader from '../components/common/PageHeader'
 import Button from '../components/common/Button'
 import { useApp } from '../context/AppContext'
@@ -205,8 +206,47 @@ export default function PurchaseBill() {
   }
   const saveBill = () => pushToast('खरीद बिल सफलतापूर्वक सेव हो गया')
 
+  /* ---------- mobile (< lg): sticky stepper <-> scroll sync ---------- */
+  const mainRef = useRef(null)
+  const secRefs = useRef([])
+  const chipRefs = useRef([])
+  const [mActive, setMActive] = useState(0)
+  const mGoTo = (i) => {
+    setMActive(i)
+    secRefs.current[i]?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+  const mOnScroll = () => {
+    const main = mainRef.current
+    if (!main) return
+    const line = main.getBoundingClientRect().top + 96 // just below the sticky stepper
+    let idx = 0
+    secRefs.current.forEach((el, i) => { if (el && el.getBoundingClientRect().top <= line) idx = i })
+    setMActive((prev) => (prev === idx ? prev : idx))
+  }
+  useEffect(() => {
+    chipRefs.current[mActive]?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })
+  }, [mActive])
+  const decimal = (v) => v.replace(/[^0-9.]/g, '')
+  const onPickFile = (e) => {
+    const f = e.target.files?.[0]
+    if (!f) return
+    if (f.size > 10 * 1024 * 1024) {
+      e.target.value = ''
+      return pushToast('फ़ाइल का साइज़ 10 MB से ज़्यादा नहीं होना चाहिए', 'warn')
+    }
+    setFileName(f.name)
+  }
+  const mSave = () => {
+    if (!billNo.trim()) return pushToast('खरीद बिल नंबर दर्ज करें', 'warn')
+    if (!supplier.trim()) return pushToast('सप्लायर का नाम दर्ज करें', 'warn')
+    if (calc.total <= 0) return pushToast('कम से कम एक आइटम जोड़ें', 'warn')
+    saveBill()
+  }
+
   return (
     <Layout title="Purchase Bill" subtitle="नया खरीद बिल">
+      {/* ===================== DESKTOP (lg and up) ===================== */}
+      <div className="hidden lg:block">
       <PageHeader
         code="SCR-005"
         title="नया खरीद बिल (Purchase Bill)"
@@ -539,6 +579,376 @@ export default function PurchaseBill() {
           </Panel>
         </aside>
       </div>
+      </div>
+
+      {/* ===================== MOBILE (phone / small tablet, < lg) ===================== */}
+      <div className="lg:hidden fixed inset-x-0 top-0 bottom-[56px] z-30 mx-auto w-full max-w-[900px] bg-white flex flex-col overflow-hidden">
+        <MobileHeader />
+
+        <main ref={mainRef} onScroll={mOnScroll} className="flex-1 overflow-y-auto overscroll-contain pt-1 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" style={{ paddingInline: M_PAD }}>
+          {/* ---- title block ---- */}
+          <div className="flex flex-col items-center text-center">
+            <span className="inline-flex items-center rounded-md px-3 py-1 font-bold text-white leading-none" style={{ background: C.green, fontSize: cl(11, 3.4, 15) }}>SCR-005</span>
+            <h1 className="font-bold leading-tight mt-2" style={{ color: C.label, fontSize: cl(20, 6.2, 30) }}>नया खरीद बिल (Purchase Bill)</h1>
+            <p className="font-medium mt-1 px-2" style={{ color: C.text, fontSize: cl(11, 3.2, 15) }}>GST (HSN & Rate) और अन्य जानकारी के साथ खरीद बिल बनाएं</p>
+          </div>
+
+          {/* ---- sticky stepper (scrolls sideways, follows the page) ---- */}
+          <nav aria-label="बिल के चरण" className="sticky top-0 z-10 bg-white mt-3 border-b" style={{ borderColor: C.border, marginInline: `calc(-1 * ${M_PAD})`, paddingInline: M_PAD }}>
+            <ol className="flex items-center overflow-x-auto py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {STEPS.map((st, i) => (
+                <li key={st.label} className="flex items-center shrink-0">
+                  <button
+                    type="button"
+                    ref={(el) => { chipRefs.current[i] = el }}
+                    onClick={() => mGoTo(i)}
+                    aria-current={mActive === i ? 'step' : undefined}
+                    className="flex items-center gap-1.5 rounded-full focus-ring"
+                  >
+                    <span className="rounded-full flex items-center justify-center font-semibold border shrink-0" style={{
+                      width: cl(24, 7, 30), height: cl(24, 7, 30), fontSize: cl(11, 3.3, 14),
+                      background: mActive === i ? C.green : '#fff', color: mActive === i ? '#fff' : C.text, borderColor: mActive === i ? C.green : '#94a3b8',
+                    }}>{i + 1}</span>
+                    <span className="font-semibold whitespace-nowrap" style={{ color: mActive === i ? C.green : C.text, fontSize: cl(11, 3.3, 14) }}>{st.label}</span>
+                  </button>
+                  {i < STEPS.length - 1 && <span className="h-px w-4 bg-slate-300 mx-2 shrink-0" />}
+                </li>
+              ))}
+            </ol>
+          </nav>
+
+          {/* ---- 1. bill info ---- */}
+          <MCard title="1. बिल जानकारी" innerRef={(el) => { secRefs.current[0] = el }}>
+            <div className="grid grid-cols-2" style={{ gap: M_GAP }}>
+              <MField label="खरीद बिल नंबर" required>
+                <MText icon={Settings} value={billNo} onChange={(e) => setBillNo(e.target.value)} aria-label="खरीद बिल नंबर" />
+              </MField>
+              <MField label="बिल दिनांक" required>
+                <MDate value={billDate} onChange={setBillDate} label="बिल दिनांक" />
+              </MField>
+              <MField label="बिल प्रकार" required>
+                <MSelect value={billType} onChange={setBillType} options={['Tax Invoice', 'Retail']} label="बिल प्रकार" />
+              </MField>
+              <MField label="खरीद का प्रकार">
+                <MSelect value={purchaseType} onChange={setPurchaseType} options={['Taxable Purchase', 'Exempt Purchase']} label="खरीद का प्रकार" />
+              </MField>
+            </div>
+            <label className="mt-3 inline-flex items-center gap-2 font-medium cursor-pointer" style={{ color: C.label, fontSize: cl(11.5, 3.5, 14) }}>
+              <input type="checkbox" checked={retail} onChange={(e) => setRetail(e.target.checked)} className="w-4 h-4 rounded border-slate-300 accent-[#15803d]" />
+              रिटेल पर्चेज़ (B2C)
+            </label>
+          </MCard>
+
+          {/* ---- 2. supplier ---- */}
+          <MCard title="2. सप्लायर जानकारी" innerRef={(el) => { secRefs.current[1] = el }}>
+            <MField label="सप्लायर का नाम" required>
+              <MText icon={User} value={supplier} onChange={(e) => setSupplier(e.target.value)} aria-label="सप्लायर का नाम" />
+            </MField>
+            <div className="grid grid-cols-2 mt-3" style={{ gap: M_GAP }}>
+              <MField label="मोबाइल नंबर">
+                <MText icon={Phone} inputMode="numeric" maxLength={10} value={mobile} onChange={(e) => setMobile(e.target.value.replace(/\D/g, ''))} aria-label="मोबाइल नंबर" />
+              </MField>
+              <MField label="राज्य" required>
+                <MSelect value={state} onChange={setState} options={['Bihar (10)']} label="राज्य" />
+              </MField>
+            </div>
+            <div className="mt-3">
+              <MField label="GSTIN (यदि हो)">
+                <MText value={gstin} maxLength={15} onChange={(e) => setGstin(e.target.value.toUpperCase())} aria-label="GSTIN" />
+              </MField>
+            </div>
+          </MCard>
+
+          {/* ---- 3. items ---- */}
+          <MCard title="3. आइटम विवरण" innerRef={(el) => { secRefs.current[2] = el }}>
+            <div className="space-y-2.5">
+              {calc.rows.map((r, i) => (
+                <div key={r.id} className="rounded-lg border bg-slate-50 p-2.5" style={{ borderColor: C.field }}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-bold truncate" style={{ color: C.text, fontSize: cl(12, 3.6, 15) }}>{i + 1}. {r.name || 'नया आइटम'}</span>
+                    <button type="button" aria-label="आइटम हटाएँ" onClick={() => removeItem(r.id)} className="p-1.5 -mr-1 text-red-500 active:scale-90 focus-ring rounded">
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-6" style={{ gap: cl(6, 2.4, 12) }}>
+                    <div className="col-span-6">
+                      <MField label="प्रोडक्ट नाम">
+                        <MText value={r.name} placeholder="प्रोडक्ट का नाम" onChange={(e) => updateItem(r.id, 'name', e.target.value)} aria-label="प्रोडक्ट नाम" />
+                      </MField>
+                    </div>
+                    <div className="col-span-3">
+                      <MField label="HSN कोड">
+                        <MText value={r.hsn} inputMode="numeric" onChange={(e) => updateItem(r.id, 'hsn', e.target.value.replace(/\D/g, ''))} aria-label="HSN कोड" />
+                      </MField>
+                    </div>
+                    <div className="col-span-3">
+                      <MField label="Unit (इकाई)">
+                        <MSelect value={r.unit} onChange={(v) => updateItem(r.id, 'unit', v)} options={UNITS} label="इकाई" />
+                      </MField>
+                    </div>
+                    <div className="col-span-3">
+                      <MField label="Qty (मात्रा)">
+                        <MText center value={r.qty} inputMode="decimal" onChange={(e) => updateItem(r.id, 'qty', decimal(e.target.value))} aria-label="मात्रा" />
+                      </MField>
+                    </div>
+                    <div className="col-span-3">
+                      <MField label="Rate (₹)">
+                        <MText center value={r.rate} inputMode="decimal" onChange={(e) => updateItem(r.id, 'rate', decimal(e.target.value))} aria-label="रेट" />
+                      </MField>
+                    </div>
+                  </div>
+                  <p className="mt-2 flex justify-between font-semibold" style={{ color: C.text, fontSize: cl(11.5, 3.5, 14) }}>
+                    <span>Taxable Value (₹)</span><span>{fmt(r.taxable)}</span>
+                  </p>
+                </div>
+              ))}
+              {items.length === 0 && <p className="py-4 text-center text-slate-400 text-sm">कोई आइटम नहीं जोड़ा गया</p>}
+            </div>
+
+            <button type="button" onClick={addItem} className="mt-3 mx-auto flex items-center justify-center gap-1.5 rounded-lg border bg-white font-semibold active:bg-green-50 focus-ring" style={{ borderColor: C.field, color: C.green, height: cl(36, 10.5, 46), width: cl(130, 38, 200), fontSize: cl(12, 3.6, 15) }}>
+              <Plus size={16} /> आइटम जोड़ें
+            </button>
+
+            <div className="mt-3 flex items-center justify-between rounded-lg bg-slate-50 border px-3 py-2.5 font-semibold" style={{ borderColor: C.border, color: C.label, fontSize: cl(11, 3.3, 14) }}>
+              <span>कुल आइटम: {items.length}</span>
+              <span>कुल टैक्सेबल वैल्यू (₹) : {fmt(calc.taxable)}</span>
+            </div>
+          </MCard>
+
+          {/* ---- 4. GST ---- */}
+          <MCard title="4. GST जानकारी" innerRef={(el) => { secRefs.current[3] = el }}>
+            <MField label="GST दर (%)" required>
+              <MSelect value={gstRate} onChange={setGstRate} options={['0', '5', '12', '18', '28']} label="GST दर" suffix="%" />
+            </MField>
+            <div className="grid grid-cols-2 mt-3" style={{ gap: cl(8, 2.6, 12) }}>
+              <MStat label="टैक्सेबल वैल्यू (₹)" value={fmt(calc.taxable)} />
+              <MStat label="CGST (₹)" value={fmt(calc.cgst)} />
+              <MStat label="SGST (₹)" value={fmt(calc.sgst)} />
+              <MStat label="IGST (₹)" value={fmt(calc.igst)} />
+              <MStat label="Cess (₹)" value={fmt(calc.cess)} />
+            </div>
+            <div className="mt-3 rounded-lg border px-3 py-3" style={{ background: '#eef6ef', borderColor: '#cfe6d4' }}>
+              <div className="flex items-center justify-between">
+                <span className="font-semibold" style={{ color: C.label, fontSize: cl(12, 3.6, 15) }}>कुल टैक्स (₹)</span>
+                <span className="font-bold" style={{ color: C.green, fontSize: cl(17, 5.2, 24) }}>{fmt(calc.totalTax)}</span>
+              </div>
+              <div className="mt-2 pt-2 border-t flex items-center justify-between" style={{ borderColor: '#cfe6d4' }}>
+                <span className="font-semibold" style={{ color: C.label, fontSize: cl(12, 3.6, 15) }}>कुल बिल राशि (₹)</span>
+                <span className="font-bold" style={{ color: C.green, fontSize: cl(17, 5.2, 24) }}>{fmt(calc.total)}</span>
+              </div>
+              <p className="mt-1 text-right font-semibold" style={{ color: C.label, fontSize: cl(9.5, 2.8, 12) }}>({rupeesInHindi(calc.total)})</p>
+            </div>
+          </MCard>
+
+          {/* ---- 5. other info ---- */}
+          <MCard title="5. अन्य जानकारी" innerRef={(el) => { secRefs.current[4] = el }}>
+            <div className="space-y-3">
+              <MField label="ट्रांसपोर्ट नाम (यदि हो)">
+                <MText value={transport} onChange={(e) => setTransport(e.target.value)} aria-label="ट्रांसपोर्ट नाम" />
+              </MField>
+              <div className="grid grid-cols-2" style={{ gap: M_GAP }}>
+                <MField label="ई-वे बिल नंबर (यदि हो)">
+                  <MText icon={Info} value={eway} onChange={(e) => setEway(e.target.value)} aria-label="ई-वे बिल नंबर" />
+                </MField>
+                <MField label="वाहन नंबर (यदि हो)">
+                  <MText value={vehicle} onChange={(e) => setVehicle(e.target.value.toUpperCase())} aria-label="वाहन नंबर" />
+                </MField>
+                <MField label="भुगतान विधि" required>
+                  <MSelect value={payMethod} onChange={setPayMethod} options={['Bank Transfer', 'Cash', 'Cheque']} label="भुगतान विधि" />
+                </MField>
+                <MField label="भुगतान शर्त (यदि हो)">
+                  <MSelect value={payTerm} onChange={setPayTerm} options={['7 दिन के भीतर', 'तुरंत', '30 दिन के भीतर']} label="भुगतान शर्त" />
+                </MField>
+              </div>
+              <MField label="टिप्पणी (यदि हो)">
+                <MArea rows={3} value={remark} onChange={setRemark} label="टिप्पणी" />
+              </MField>
+            </div>
+          </MCard>
+
+          {/* ---- 6. attachment ---- */}
+          <MCard title="6. अटैचमेंट" sub="(कोई दस्तावेज़, फोटो)">
+            <label className="flex flex-col items-center justify-center gap-0.5 rounded-xl border-2 border-dashed text-center cursor-pointer active:bg-green-50 focus-within:ring-2 focus-within:ring-green-600/40" style={{ borderColor: '#22a24a', padding: cl(14, 4.4, 22) }}>
+              <Paperclip size={20} style={{ color: C.label }} />
+              <span className="font-bold max-w-full truncate" style={{ color: C.green, fontSize: cl(13, 3.9, 17) }}>{fileName || 'दस्तावेज़ जोड़ें'}</span>
+              <span className="font-semibold" style={{ color: C.text, fontSize: cl(11, 3.3, 14) }}>(फोटो / PDF / Document)</span>
+              <span style={{ color: C.muted, fontSize: cl(10, 3, 13) }}>अधिकतम साइज़: 10 MB</span>
+              <input type="file" accept="image/*,.pdf,.doc,.docx" className="sr-only" onChange={onPickFile} />
+            </label>
+            {fileName && (
+              <button type="button" onClick={() => setFileName('')} className="mt-2 mx-auto flex items-center gap-1 text-red-500 font-medium focus-ring rounded" style={{ fontSize: cl(11, 3.3, 14) }}>
+                <X size={14} /> फ़ाइल हटाएं
+              </button>
+            )}
+          </MCard>
+
+          {/* ---- summary (step 6: सारांश & सेव) ---- */}
+          <MCard title="बिल सारांश" innerRef={(el) => { secRefs.current[5] = el }}>
+            <dl className="space-y-1.5" style={{ color: C.text, fontSize: cl(12, 3.6, 15) }}>
+              {[
+                ['बिल नंबर', billNo || '—'],
+                ['बिल दिनांक', displayDate(billDate)],
+                ['सप्लायर का नाम', supplier || '—'],
+                ['कुल आइटम', items.length],
+                ['कुल टैक्सेबल वैल्यू', `₹ ${fmt(calc.taxable)}`],
+                ['कुल टैक्स', `₹ ${fmt(calc.totalTax)}`],
+              ].map(([k, v]) => (
+                <div key={k} className="flex justify-between gap-3"><dt style={{ color: C.label }}>{k} :</dt><dd className="font-medium text-right">{v}</dd></div>
+              ))}
+            </dl>
+            <div className="mt-2 pt-2 border-t flex justify-between items-baseline font-bold" style={{ borderColor: C.field }}>
+              <span style={{ color: C.text, fontSize: cl(13, 3.9, 17) }}>कुल बिल राशि :</span>
+              <span style={{ color: C.green, fontSize: cl(16, 5, 22) }}>₹ {fmt(calc.total)}</span>
+            </div>
+          </MCard>
+
+          <MCard title="टैक्स ब्रेकअप">
+            <dl className="space-y-1.5" style={{ color: C.text, fontSize: cl(12, 3.6, 15) }}>
+              {[['CGST (₹)', calc.cgst], ['SGST (₹)', calc.sgst], ['IGST (₹)', calc.igst], ['Cess (₹)', calc.cess]].map(([k, v]) => (
+                <div key={k} className="flex justify-between"><dt style={{ color: C.label }}>{k} :</dt><dd className="font-medium">{fmt(v)}</dd></div>
+              ))}
+            </dl>
+            <div className="mt-3 rounded-lg border px-3 py-2.5 flex items-center justify-between" style={{ background: '#eef6ef', borderColor: '#cfe6d4' }}>
+              <span className="font-bold" style={{ color: C.label, fontSize: cl(12, 3.6, 15) }}>कुल टैक्स (₹) :</span>
+              <span className="font-bold" style={{ color: C.green, fontSize: cl(16, 5, 22) }}>{fmt(calc.totalTax)}</span>
+            </div>
+          </MCard>
+
+          <section className="rounded-xl border bg-slate-50 mt-3" style={{ borderColor: C.border, padding: cl(12, 3.6, 18) }}>
+            <h2 className="flex items-center gap-1.5 font-bold mb-2" style={{ color: C.label, fontSize: cl(13, 3.9, 17) }}><Info size={15} /> नोट:</h2>
+            <ul className="space-y-1.5" style={{ color: C.text, fontSize: cl(11, 3.3, 14) }}>
+              {[
+                'यह बिल GSTR-3B (ITC) और GSTR-2B / GSTR-1 (HSN Summary) के लिए उपयोग होगा।',
+                'सभी जानकारी सही भरें।',
+                'बिल सेव करने के बाद स्टॉक अपने-आप अपडेट हो जाएगा।',
+              ].map((t) => <li key={t} className="flex items-start gap-1.5"><CheckCircle2 size={15} className="text-green-600 shrink-0 mt-0.5" />{t}</li>)}
+            </ul>
+          </section>
+
+          <p className="text-center font-semibold mt-4" style={{ color: C.green, fontSize: cl(11, 3.3, 14) }}>Version 1.0 &nbsp;|&nbsp; © Udyog Sarthi</p>
+        </main>
+
+        {/* ---- sticky actions, sit right above the bottom nav ---- */}
+        <div className="shrink-0 grid border-t bg-white py-2.5" style={{ borderColor: C.border, gap: cl(6, 2.4, 14), paddingInline: M_PAD, gridTemplateColumns: '1.15fr 1fr 1.15fr' }}>
+          <button type="button" onClick={() => pushToast('ड्राफ्ट सेव हो गया')} className="rounded-lg border bg-white font-semibold active:bg-slate-50 focus-ring leading-tight px-1" style={{ borderColor: C.green, color: C.green, height: M_BOX_H, fontSize: cl(11.5, 3.5, 15) }}>ड्राफ्ट सेव करें</button>
+          <button type="button" onClick={() => window.history.back()} className="rounded-lg border bg-white font-semibold active:bg-slate-50 focus-ring leading-tight px-1" style={{ borderColor: C.field, color: C.text, height: M_BOX_H, fontSize: cl(11.5, 3.5, 15) }}>रद्द करें</button>
+          <button type="button" onClick={mSave} className="rounded-lg font-semibold text-white active:opacity-90 focus-ring leading-tight px-1" style={{ background: C.green, height: M_BOX_H, fontSize: cl(11.5, 3.5, 15) }}>बिल सेव करें</button>
+        </div>
+      </div>
     </Layout>
+  )
+}
+
+
+/* =====================================================================
+   MOBILE helpers (phone / small tablet, < lg)
+   Same design tokens + clamp() sizing as Reports.jsx and the other bill pages.
+   ===================================================================== */
+const C = { green: '#14612e', label: '#1e3a8a', text: '#1f2937', muted: '#6b7280', border: '#e9ecf0', field: '#d9dde3' }
+const cl = (min, vw, max) => `clamp(${min}px, ${vw}vw, ${max}px)`
+const M_PAD = 'clamp(12px, 4vw, 28px)'
+const M_GAP = cl(8, 3, 16)
+const M_BOX_H = cl(40, 11.5, 50)
+const mInputStyle = { color: C.text, fontSize: cl(12, 3.6, 15) }
+const mIconStyle = { color: C.muted, width: cl(15, 4.4, 20), height: cl(15, 4.4, 20) }
+
+function MField({ label, required, children }) {
+  return (
+    <div className="min-w-0">
+      <span className="block font-semibold mb-1" style={{ color: C.label, fontSize: cl(11, 3.3, 14) }}>
+        {label}{required && <span className="text-red-500"> *</span>}
+      </span>
+      {children}
+    </div>
+  )
+}
+
+function MBox({ children, readOnly }) {
+  return (
+    <div
+      className={`relative flex items-center w-full rounded-lg border ${readOnly ? 'bg-slate-100' : 'bg-white focus-within:border-green-600'}`}
+      style={{ borderColor: C.field, height: M_BOX_H }}
+    >
+      {children}
+    </div>
+  )
+}
+
+function MText({ icon: Icon, center, ...props }) {
+  return (
+    <MBox>
+      <input
+        {...props}
+        className={`flex-1 min-w-0 h-full bg-transparent outline-none placeholder:text-slate-400 ${Icon ? 'pl-3 pr-9' : 'px-3'} ${center ? 'text-center' : ''}`}
+        style={mInputStyle}
+      />
+      {Icon && <Icon className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style={mIconStyle} />}
+    </MBox>
+  )
+}
+
+function MSelect({ value, onChange, options, label, suffix = '' }) {
+  return (
+    <MBox>
+      <select value={value} onChange={(e) => onChange(e.target.value)} aria-label={label} className="appearance-none w-full h-full bg-transparent pl-3 pr-9 outline-none rounded-lg" style={mInputStyle}>
+        {options.map((o) => <option key={o} value={o}>{o}{suffix}</option>)}
+      </select>
+      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ ...mIconStyle, color: C.text }} />
+    </MBox>
+  )
+}
+
+function MDate({ value, onChange, label }) {
+  return (
+    <MBox>
+      <span className="pl-3 pr-9 font-medium" style={mInputStyle}>{displayDate(value)}</span>
+      <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" style={mIconStyle} />
+      {/* native picker sits invisibly on top so the box keeps the dd/mm/yyyy look */}
+      <input
+        type="date"
+        aria-label={label}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onClick={(e) => { try { e.currentTarget.showPicker?.() } catch { /* unsupported */ } }}
+        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+      />
+    </MBox>
+  )
+}
+
+function MArea({ value, onChange, rows = 3, label, max = 250 }) {
+  return (
+    <div className="relative rounded-lg border bg-white focus-within:border-green-600" style={{ borderColor: C.field }}>
+      <textarea
+        rows={rows}
+        maxLength={max}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        aria-label={label}
+        className="block w-full resize-none bg-transparent px-3 pt-2.5 pb-5 outline-none"
+        style={mInputStyle}
+      />
+      <span className="absolute right-2.5 bottom-1 text-[10px]" style={{ color: C.muted }}>{value.length}/{max}</span>
+    </div>
+  )
+}
+
+function MCard({ title, sub, innerRef, children }) {
+  return (
+    <section ref={innerRef} className="rounded-xl border bg-white mt-3" style={{ borderColor: C.border, padding: cl(12, 3.6, 18), scrollMarginTop: 72 }}>
+      <h2 className="font-bold mb-3" style={{ color: C.label, fontSize: cl(14, 4.3, 19) }}>
+        {title}{sub && <span className="font-semibold ml-1" style={{ fontSize: cl(11, 3.4, 14) }}>{sub}</span>}
+      </h2>
+      {children}
+    </section>
+  )
+}
+
+function MStat({ label, value }) {
+  return (
+    <div className="rounded-lg border bg-slate-50 px-3 py-2 text-center" style={{ borderColor: C.border }}>
+      <p style={{ color: C.muted, fontSize: cl(10, 3, 12.5) }}>{label}</p>
+      <p className="font-bold" style={{ color: C.text, fontSize: cl(14, 4.3, 18) }}>{value}</p>
+    </div>
   )
 }

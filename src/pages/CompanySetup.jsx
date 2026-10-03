@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CheckCircle2, Check } from 'lucide-react'
+import { CheckCircle2 } from 'lucide-react'
 import Logo from '../components/common/Logo'
 import { Field, Input, Select, Checkbox } from '../components/common/Form'
 import Button from '../components/common/Button'
@@ -9,6 +9,12 @@ import shopIllustration from '../assets/illus-my-business.png'
 
 const STEPS = ['कंपनी जानकारी', 'पता जानकारी', 'व्यवसाय विवरण', 'अतिरिक्त जानकारी', 'पूरी करें']
 const STEP_TITLES = ['कंपनी जानकारी', 'पता जानकारी', 'व्यवसाय विवरण', 'अतिरिक्त जानकारी', 'पूरी करें']
+
+// Phone screen titles (prototype): the intro is "Step 1", so the 5-dot progress shows form step + 1.
+const MOBILE_TITLES = ['कंपनी / व्यवसाय की जानकारी', 'पता जानकारी', 'व्यवसाय विवरण', 'अतिरिक्त जानकारी']
+
+const NAVY = 'text-[#1b2a5c]'
+const GREEN_BG = 'bg-[#0b7a3e] hover:bg-[#096a35]'
 
 const initialForm = {
   companyName: '', companyType: '', ownerName: '', mobile: '',
@@ -33,46 +39,92 @@ export default function CompanySetup() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4 py-8 lg:block lg:p-0">
-      {/* ===================== MOBILE (portrait) ===================== */}
-      <div className="lg:hidden w-full max-w-sm bg-white rounded-2xl shadow-card border border-slate-200 overflow-hidden">
+    <div className="min-h-screen bg-white lg:bg-slate-50">
+      {/* ===================== MOBILE (portrait) — full screen, like the prototype phones ===================== */}
+      <div className="lg:hidden relative mx-auto w-full max-w-[480px] h-screen h-[100dvh] bg-white flex flex-col overflow-hidden">
         {showMobileIntro ? (
-          <div className="p-6 flex flex-col items-center text-center gap-4">
-            <Logo variant="stacked" size="md" />
-            <h2 className="text-lg font-bold text-slate-800 mt-2">आइए, आपका व्यवसाय सेटअप करें</h2>
-            <p className="text-sm text-slate-500">कुछ आसान जानकारी भरें और अपना व्यवसाय ऐप में शुरू करें।</p>
-            <img src={shopIllustration} alt="" className="w-44 h-auto my-2" />
-            <Button variant="primary" size="lg" className="w-full" onClick={() => setShowMobileIntro(false)}>शुरू करें</Button>
-          </div>
-        ) : (
           <>
-            <div className="px-5 pt-5 flex items-center justify-center gap-1.5">
-              {STEPS.map((_, i) => (
-                <span key={i} className={`h-1.5 rounded-full transition-all ${i + 1 === step ? 'w-6 bg-brandGreen-600' : 'w-1.5 bg-slate-200'}`} />
-              ))}
+            {/* Step 1 : intro */}
+            <div className="flex-1 overflow-y-auto px-6 pt-14">
+              <div className="w-[82%]">
+                <Logo variant="stacked" size="xl" className="!w-full" />
+              </div>
+              <h2 className={`mt-8 text-[19px] font-bold leading-snug ${NAVY}`}>आइए, आपका व्यवसाय सेटअप करें</h2>
+              <p className={`mt-3 text-[14px] leading-6 font-medium ${NAVY}`}>
+                कुछ आसान जानकारी भरें और अपना व्यवसाय ऐप में शुरू करें।
+              </p>
+              {/* The PNG has grey vertical lines baked into its right edge. Crop the image to a
+                  window centred on the shop (1.5%-78.5% of its width) and centre that window. */}
+              <div className="mt-6 mx-auto w-[60%] overflow-hidden">
+                <img
+                  src={shopIllustration}
+                  alt=""
+                  className="block h-auto"
+                  style={{ width: '129.9%', maxWidth: 'none', marginLeft: '-1.95%' }}
+                />
+              </div>
             </div>
-            <div className="p-5">
-              {step < 5 && <h3 className="text-base font-bold text-slate-800 mb-4">{STEP_TITLES[step - 1]}</h3>}
-              <StepFields step={step} form={form} update={update} stacked />
-              {step < 5 ? (
-                <div className="flex items-center gap-2 mt-6">
-                  <Button variant="outline" className="flex-1" onClick={back} disabled={step === 1}>वापस</Button>
-                  {step < 4 ? (
-                    <Button variant="primary" className="flex-1" onClick={next}>आगे</Button>
-                  ) : (
-                    <Button variant="primary" className="flex-1" onClick={() => setStep(5)}>सेव करें और आगे बढ़ें</Button>
-                  )}
-                </div>
-              ) : (
-                <div className="mt-2">
-                  <Button variant="primary" size="lg" className="w-full" onClick={finish}>Home Screen पर जाएं</Button>
-                </div>
-              )}
+            <div className="px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+              <button
+                type="button"
+                onClick={() => setShowMobileIntro(false)}
+                className={`w-full h-12 rounded-lg text-white text-base font-bold ${GREEN_BG}`}
+              >
+                शुरू करें
+              </button>
             </div>
           </>
-        )}
-        {!showMobileIntro && step < 5 && (
-          <div className="px-5 pb-5 text-xs text-slate-400">ⓘ नोट: * वाले फ़ील्ड आवश्यक हैं। आप बाद में Settings से जानकारी बदल सकते हैं।</div>
+        ) : step === 5 ? (
+          <>
+            {/* Finished */}
+            <div className="pt-[max(2rem,env(safe-area-inset-top))]">
+              <MobileStepper reached={5} />
+            </div>
+            <div className="flex-1 flex flex-col items-center justify-center text-center gap-3 px-8">
+              <CheckCircle2 size={64} className="text-[#0b7a3e]" />
+              <h3 className={`text-xl font-bold ${NAVY}`}>बधाई हो!</h3>
+              <p className="text-sm text-slate-500">आपकी कंपनी / व्यवसाय की जानकारी सफलतापूर्वक सेव हो गई है। अब आप ऐप का उपयोग शुरू कर सकते हैं।</p>
+            </div>
+            <div className="px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] flex items-center gap-3 bg-white">
+              <button
+                type="button"
+                onClick={back}
+                className={`flex-1 h-12 rounded-lg border border-slate-300 bg-white text-base font-bold ${NAVY}`}
+              >
+                वापस
+              </button>
+              <button type="button" onClick={finish} className={`flex-[2] h-12 rounded-lg text-white text-base font-bold ${GREEN_BG}`}>
+                Home Screen पर जाएं
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Steps 2-5 : title + progress, scrolling fields, buttons pinned to the bottom */}
+            <div className="pt-[max(2rem,env(safe-area-inset-top))] pb-2 px-5">
+              <h3 className={`text-center text-[19px] font-bold ${NAVY}`}>{MOBILE_TITLES[step - 1]}</h3>
+              <div className="mt-4"><MobileStepper reached={step + 1} /></div>
+            </div>
+            <div className="flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden px-5 pt-3 pb-3 [&_label]:text-[13px] [&_label]:font-semibold [&_label]:text-[#1b2a5c] [&_input:not([type=checkbox])]:h-11 [&_select]:h-11 [&_input]:rounded-lg [&_select]:rounded-lg [&_input]:text-sm [&_select]:text-sm">
+              <StepFields step={step} form={form} update={update} stacked />
+            </div>
+            <div className="px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] flex items-center gap-3 bg-white">
+              <button
+                type="button"
+                onClick={step === 1 ? () => setShowMobileIntro(true) : back}
+                className={`flex-1 h-12 rounded-lg border border-slate-300 bg-white text-base font-bold ${NAVY}`}
+              >
+                वापस
+              </button>
+              <button
+                type="button"
+                onClick={step < 4 ? next : () => setStep(5)}
+                className={`${step < 4 ? 'flex-1' : 'flex-[2]'} h-12 rounded-lg text-white text-base font-bold ${GREEN_BG}`}
+              >
+                {step < 4 ? 'आगे' : 'सेव करें और आगे बढ़ें'}
+              </button>
+            </div>
+          </>
         )}
       </div>
 
@@ -109,7 +161,10 @@ export default function CompanySetup() {
                 <CheckCircle2 size={56} className="text-brandGreen-600" />
                 <h3 className="text-lg font-bold text-slate-800">बधाई हो!</h3>
                 <p className="text-sm text-slate-500 max-w-sm">आपकी कंपनी / व्यवसाय की जानकारी सफलतापूर्वक सेव हो गई है। अब आप ऐप का उपयोग शुरू कर सकते हैं।</p>
-                <Button variant="primary" size="lg" onClick={finish} className="mt-2">Home Screen पर जाएं (SCR-003)</Button>
+                <div className="flex items-center gap-3 mt-2">
+                  <Button variant="outline" size="lg" onClick={back}>वापस</Button>
+                  <Button variant="primary" size="lg" onClick={finish}>Home Screen पर जाएं (SCR-003)</Button>
+                </div>
               </div>
             ) : (
               <>
@@ -137,10 +192,31 @@ export default function CompanySetup() {
   )
 }
 
+// 5-step progress: numbered circles joined by lines; the first `reached` circles are green.
+function MobileStepper({ reached }) {
+  return (
+    <div className="flex items-center justify-center">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <React.Fragment key={n}>
+          <span
+            className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 border-2 ${
+              n <= reached ? 'bg-[#0b7a3e] border-[#0b7a3e] text-white' : 'bg-white border-slate-300 text-slate-500'
+            }`}
+          >
+            {n}
+          </span>
+          {n < 5 && <span className={`h-0.5 w-8 ${n < reached ? 'bg-[#0b7a3e]' : 'bg-slate-300'}`} />}
+        </React.Fragment>
+      ))}
+    </div>
+  )
+}
+
 // Field sets for each step. `stacked` = mobile (single column); desktop uses the
 // exact multi-column layout shown in SCR-002's desktop panel.
 function StepFields({ step, form, update, stacked = false }) {
   const grid2 = stacked ? 'grid grid-cols-1 gap-4' : 'grid grid-cols-2 gap-6'
+  const area = 'w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 resize-none'
   const grid4 = stacked ? 'grid grid-cols-1 gap-4' : 'grid grid-cols-4 gap-6'
 
   if (step === 1) {
@@ -172,7 +248,9 @@ function StepFields({ step, form, update, stacked = false }) {
     return (
       <div className={stacked ? "space-y-4" : "space-y-6"}>
         <Field label="दुकान / कार्यालय का पता" required>
-          <Input placeholder="पूरा पता दर्ज करें" value={form.address} onChange={update('address')} />
+          {stacked
+            ? <textarea rows={2} className={area} placeholder="पूरा पता दर्ज करें" value={form.address} onChange={update('address')} />
+            : <Input placeholder="पूरा पता दर्ज करें" value={form.address} onChange={update('address')} />}
         </Field>
         <div className={grid4}>
           <Field label="राज्य" required>
@@ -215,7 +293,9 @@ function StepFields({ step, form, update, stacked = false }) {
           </Select>
         </Field>
         <Field label="मुख्य उत्पाद / सेवा">
-          <Input placeholder="उदाहरण: कपड़ा, किराना, मोबाइल आदि" value={form.mainProduct} onChange={update('mainProduct')} />
+          {stacked
+            ? <textarea rows={2} className={area} placeholder="उदाहरण: कपड़ा, किराना, मोबाइल आदि" value={form.mainProduct} onChange={update('mainProduct')} />
+            : <Input placeholder="उदाहरण: कपड़ा, किराना, मोबाइल आदि" value={form.mainProduct} onChange={update('mainProduct')} />}
         </Field>
         <Field label="व्यवसाय शुरू करने की तारीख" required>
           <Input type="date" value={form.startDate} onChange={update('startDate')} />
